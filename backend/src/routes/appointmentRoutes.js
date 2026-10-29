@@ -7,6 +7,7 @@ router.use(authenticateToken);
 
 router.get('/', appointmentController.getAppointments);
 router.get('/doctor-requests', appointmentController.getDoctorRequests);
+router.get('/check-conflict', appointmentController.checkConflict);
 router.post('/', appointmentController.createAppointment);
 router.post('/request', appointmentController.requestAppointment);
 router.post('/:id/doctor-respond', appointmentController.doctorRespond);

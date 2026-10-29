@@ -174,6 +174,11 @@ export const appointmentService = {
     return res.data;
   },
 
+  async checkConflict(date: string, doctorId?: number): Promise<{ success: boolean; hasConflict: boolean; message: string; conflictAppointment?: Appointment }> {
+    const res = await api.get('/appointments/check-conflict', { params: { date, doctor_id: doctorId } });
+    return res.data;
+  },
+
   async doctorRespond(id: number, data: {
     available_slot?: string;
     response_notes?: string;

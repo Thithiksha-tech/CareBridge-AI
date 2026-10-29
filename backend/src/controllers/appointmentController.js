@@ -512,12 +512,69 @@ async function doctorRespond(req, res) {
   }
 }
 
+/**
+ * Check if doctor has an appointment conflict on a given date
+ */
+function checkConflict(req, res) {
+  try {
+    const { date, doctor_id, time } = req.query;
+    if (!date) {
+      return res.status(400).json({ success: false, message: 'Date parameter is required.' });
+    }
+
+    const doctorId = doctor_id ? parseInt(doctor_id) : (req.user.role === 'doctor' ? req.user.id : null);
+    
+    // Normalize date string (e.g. 2026-11-04 or Nov 04, 2026)
+    const cleanDate = date.trim();
+    
+    let query = `
+      SELECT a.*, u.full_name as patient_name, u.phone as patient_phone
+      FROM patient_appointments a
+      LEFT JOIN users u ON a.user_id = u.id
+      WHERE (
+        a.appointment_date LIKE ? OR 
+        a.appointment_date LIKE ?
+      )
+      AND a.status != 'cancelled'
+    `;
+    const params = [`%${cleanDate}%`, `%${cleanDate.replace(/-/g, '/')} %`];
+
+    if (doctorId) {
+      query += ` AND (a.doctor_id = ? OR a.doctor_id IS NULL)`;
+      params.push(doctorId);
+    }
+
+    const existing = db.prepare(query).all(...params);
+
+    if (existing && existing.length > 0) {
+      const conflictAppt = existing[0];
+      return res.status(200).json({
+        success: true,
+        hasConflict: true,
+        totalConflicts: existing.length,
+        conflictAppointment: conflictAppt,
+        message: `You have an appointment on this day already (${conflictAppt.doctor_name || 'Dr. Jenkins'} with ${conflictAppt.patient_name || 'patient'} at ${conflictAppt.appointment_time || 'scheduled slot'}). You can choose another day or another time.`
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      hasConflict: false,
+      message: 'Slot is open. No scheduling conflict detected.'
+    });
+  } catch (error) {
+    console.error('[CareBridge Check Conflict Error]:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 module.exports = {
   getAppointments,
   createAppointment,
   requestAppointment,
   getDoctorRequests,
   doctorRespond,
+  checkConflict,
   updateAppointment,
   deleteAppointment,
   sendAppointmentEmail

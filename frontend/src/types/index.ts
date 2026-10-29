@@ -18,9 +18,11 @@ export interface DischargeRecord {
   user_id: number;
   file_name: string;
   extracted_text: string;
+  status?: string;
   parsed_data: {
     patientName?: string;
     admissionReason?: string;
+    primaryDiagnosis?: string;
     dischargeDate?: string;
     medications?: Array<{
       name: string;
@@ -74,6 +76,7 @@ export interface Reminder {
   user_id: number;
   discharge_id?: number;
   title: string;
+  description?: string;
   reminder_type: 'medication' | 'exercise' | 'diet' | 'appointment' | 'general';
   time_slot: 'Morning' | 'Midday' | 'Evening' | 'Bedtime';
   frequency: string;
@@ -123,6 +126,7 @@ export interface HealthLog {
   diastolic: number;
   blood_sugar: number;
   sugar_timing: string;
+  heart_rate?: number;
   blood_report_name?: string;
   blood_report_summary?: string;
   followed_routine: number | boolean;
