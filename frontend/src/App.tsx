@@ -42,6 +42,33 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// Strict Role Guard: prevents cross-role access between Patient, Caretaker, and Doctor
+const RoleRoute: React.FC<{ allowedRoles: string[]; children: React.ReactNode }> = ({ allowedRoles, children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return null;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const userRole = user.role || 'patient';
+  if (!allowedRoles.includes(userRole)) {
+    // Strictly isolate users to their designated role modules
+    if (userRole === 'doctor' || userRole === 'clinician') {
+      return <Navigate to="/doctor" replace />;
+    }
+    if (userRole === 'caretaker' || userRole === 'caregiver') {
+      return <Navigate to="/caregiver" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
@@ -53,7 +80,7 @@ export const App: React.FC = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<RegisterPage />} />
 
-            {/* Authenticated Layout Routes */}
+            {/* Authenticated Layout Routes with Strict Role Isolation */}
             <Route
               element={
                 <ProtectedRoute>
@@ -61,14 +88,63 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             >
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/upload" element={<UploadPage />} />
-              <Route path="/care-plan" element={<CarePlanPage />} />
+              {/* Patient Only Routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  <RoleRoute allowedRoles={['patient']}>
+                    <DashboardPage />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/upload"
+                element={
+                  <RoleRoute allowedRoles={['patient']}>
+                    <UploadPage />
+                  </RoleRoute>
+                }
+              />
+
+              {/* Caretaker Only Routes */}
+              <Route
+                path="/caregiver"
+                element={
+                  <RoleRoute allowedRoles={['caretaker', 'caregiver']}>
+                    <CaregiverPage />
+                  </RoleRoute>
+                }
+              />
+
+              {/* Doctor Only Routes */}
+              <Route
+                path="/doctor"
+                element={
+                  <RoleRoute allowedRoles={['doctor', 'clinician']}>
+                    <DoctorPage />
+                  </RoleRoute>
+                }
+              />
+
+              {/* Shared Routes with Respective Scopes */}
+              <Route
+                path="/care-plan"
+                element={
+                  <RoleRoute allowedRoles={['patient', 'caretaker', 'caregiver']}>
+                    <CarePlanPage />
+                  </RoleRoute>
+                }
+              />
+              <Route
+                path="/reminders"
+                element={
+                  <RoleRoute allowedRoles={['patient', 'caretaker', 'caregiver']}>
+                    <RemindersPage />
+                  </RoleRoute>
+                }
+              />
               <Route path="/appointments" element={<AppointmentsPage />} />
-              <Route path="/reminders" element={<RemindersPage />} />
               <Route path="/ai-assistant" element={<AIChatPage />} />
-              <Route path="/caregiver" element={<CaregiverPage />} />
-              <Route path="/doctor" element={<DoctorPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
 

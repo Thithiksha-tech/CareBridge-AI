@@ -97,7 +97,7 @@ export interface Appointment {
   appointment_date: string;
   appointment_time?: string;
   location?: string;
-  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'scheduled' | 'completed' | 'cancelled' | 'requested' | 'confirmed_by_doctor';
+  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'scheduled' | 'completed' | 'cancelled' | 'requested' | 'confirmed_by_doctor' | 'reschedule_proposed' | 'upcoming';
   purpose?: string;
   doctor_feedback?: string;
   doctor_response_notes?: string;
@@ -186,4 +186,51 @@ export interface EmailSettings {
   smtpUser: string;
   fromEmail: string;
   isConfigured: boolean;
+}
+
+export interface BiomarkerItem {
+  name: string;
+  category: 'Cardiac' | 'Lipid Panel' | 'Renal & Metabolic' | 'Coagulation & Hematology' | string;
+  value: number;
+  unit: string;
+  ref_range: string;
+  status: 'normal' | 'warning' | 'critical';
+  clinical_impact?: string;
+}
+
+export interface LabReport {
+  id: number;
+  patient_id: number;
+  report_name: string;
+  stage_name: string;
+  test_date: string;
+  laboratory_name: string;
+  ordering_physician: string;
+  clinical_notes?: string;
+  overall_status: 'stable' | 'improved' | 'attention_needed';
+  created_at: string;
+  biomarkers: BiomarkerItem[];
+}
+
+export interface BiomarkerDelta {
+  name: string;
+  category: string;
+  unit: string;
+  ref_range: string;
+  base_value: number;
+  target_value: number;
+  base_status: string;
+  target_status: string;
+  delta: number;
+  percent_change: number;
+  trend: 'improved' | 'worsened' | 'unchanged';
+  clinical_interpretation: string;
+}
+
+export interface LabComparisonResult {
+  baseReport: LabReport;
+  targetReport: LabReport;
+  timeElapsedDays: number;
+  biomarkerDeltas: BiomarkerDelta[];
+  clinicalProgressSummary: string;
 }

@@ -11,6 +11,7 @@ router.get('/check-conflict', appointmentController.checkConflict);
 router.post('/', appointmentController.createAppointment);
 router.post('/request', appointmentController.requestAppointment);
 router.post('/:id/doctor-respond', appointmentController.doctorRespond);
+router.post('/:id/caretaker-respond', appointmentController.caretakerRespondReschedule);
 router.put('/:id', appointmentController.updateAppointment);
 router.delete('/:id', appointmentController.deleteAppointment);
 router.post('/:id/send-email', appointmentController.sendAppointmentEmail);

@@ -25,7 +25,7 @@ try {
       requested_by_email TEXT,
       doctor_available_slot TEXT,
       doctor_response_notes TEXT,
-      status TEXT CHECK(status IN ('scheduled', 'completed', 'cancelled', 'requested', 'confirmed_by_doctor', 'declined')) DEFAULT 'scheduled',
+      status TEXT CHECK(status IN ('scheduled', 'completed', 'cancelled', 'requested', 'confirmed_by_doctor', 'declined', 'reschedule_proposed')) DEFAULT 'scheduled',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     );

@@ -11,7 +11,9 @@ import type {
   EmailSettings,
   HealthLog,
   HealthMetrics,
-  MedicationStock
+  MedicationStock,
+  LabReport,
+  LabComparisonResult
 } from '../types';
 
 const api = axios.create({
@@ -184,8 +186,20 @@ export const appointmentService = {
     response_notes?: string;
     confirmed_date?: string;
     confirmed_time?: string;
+    is_reschedule?: boolean;
+    status?: string;
   }): Promise<{ success: boolean; message: string; appointment: Appointment }> {
     const res = await api.post(`/appointments/${id}/doctor-respond`, data);
+    return res.data;
+  },
+
+  async caretakerRespondReschedule(id: number, data: {
+    action: 'accept' | 'counter';
+    counter_date?: string;
+    counter_time?: string;
+    notes?: string;
+  }): Promise<{ success: boolean; message: string; appointment: Appointment }> {
+    const res = await api.post(`/appointments/${id}/caretaker-respond`, data);
     return res.data;
   },
 
@@ -241,6 +255,38 @@ export const healthService = {
 
   async analyzeVitals(vitals: any): Promise<any> {
     const res = await api.post('/health-logs/analyze-vitals', vitals);
+    return res.data;
+  },
+
+  async getLabReports(patientId?: number): Promise<{
+    success: boolean;
+    reports: LabReport[];
+    patient: { id: number; name: string };
+  }> {
+    const res = await api.get('/health-logs/lab-reports', { params: { patient_id: patientId } });
+    return res.data;
+  },
+
+  async compareLabReports(baseId?: number, targetId?: number): Promise<{
+    success: boolean;
+    comparison: LabComparisonResult;
+  }> {
+    const res = await api.get('/health-logs/lab-reports/compare', { params: { base_id: baseId, target_id: targetId } });
+    return res.data;
+  },
+
+  async createLabReport(data: {
+    patient_id?: number;
+    report_name: string;
+    stage_name: string;
+    test_date: string;
+    laboratory_name?: string;
+    ordering_physician?: string;
+    clinical_notes?: string;
+    overall_status?: string;
+    biomarkers: any[];
+  }): Promise<{ success: boolean; message: string; report: LabReport }> {
+    const res = await api.post('/health-logs/lab-reports', data);
     return res.data;
   },
 };

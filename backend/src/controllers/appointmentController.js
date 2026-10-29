@@ -434,12 +434,12 @@ function getDoctorRequests(req, res) {
 }
 
 /**
- * Doctor responds to appointment request ("I'm available at this time, you can come and visit me")
+ * Doctor responds to appointment request ("I'm available at this time, you can come and visit me" or propose reschedule)
  */
 async function doctorRespond(req, res) {
   try {
     const { id } = req.params;
-    const { available_slot, response_notes, confirmed_date, confirmed_time } = req.body;
+    const { available_slot, response_notes, confirmed_date, confirmed_time, is_reschedule, status: customStatus } = req.body;
     const doctor = req.user;
 
     const appt = db.prepare(`
@@ -454,15 +454,22 @@ async function doctorRespond(req, res) {
     }
 
     const proposedSlot = available_slot || `${confirmed_date || appt.appointment_date} at ${confirmed_time || appt.appointment_time || '10:30 AM'}`;
-    const notes = response_notes || `Confirmed. Dr. ${doctor.full_name || 'Jenkins'} is available on ${proposedSlot}. You can come and visit at this time.`;
+    const isReschedule = is_reschedule || customStatus === 'reschedule_proposed';
+    const newStatus = isReschedule ? 'reschedule_proposed' : 'confirmed_by_doctor';
+
+    const defaultNotes = isReschedule 
+      ? `Dr. ${doctor.full_name || 'Jenkins'} has a schedule conflict on the requested date. Proposed new slot: ${proposedSlot}. Please confirm if this works.`
+      : `Confirmed. Dr. ${doctor.full_name || 'Jenkins'} is available on ${proposedSlot}. You can come and visit at this time.`;
+
+    const notes = response_notes || defaultNotes;
 
     db.prepare(`
       UPDATE patient_appointments 
-      SET doctor_available_slot = ?, doctor_response_notes = ?, doctor_feedback = ?, status = 'confirmed_by_doctor',
+      SET doctor_available_slot = ?, doctor_response_notes = ?, doctor_feedback = ?, status = ?,
           appointment_date = COALESCE(?, appointment_date),
           appointment_time = COALESCE(?, appointment_time)
       WHERE id = ?
-    `).run(proposedSlot, notes, notes, confirmed_date || null, confirmed_time || null, id);
+    `).run(proposedSlot, notes, notes, newStatus, confirmed_date || null, confirmed_time || null, id);
 
     const updated = db.prepare('SELECT * FROM patient_appointments WHERE id = ?').get(id);
 
@@ -473,28 +480,35 @@ async function doctorRespond(req, res) {
       recipients.push(appt.requested_by_email);
     }
 
+    const emailSubject = isReschedule
+      ? `🗓️ [Action Required: CareBridge Reschedule Proposal] Dr. ${doctor.full_name || 'Jenkins'} proposed a new date`
+      : `✅ [Doctor Response] Appointment Confirmed with ${doctor.full_name || 'Dr. Sarah Jenkins'}`;
+
     for (const email of recipients) {
       await sendEmail({
         to: email,
-        subject: `✅ [Doctor Response] Appointment Confirmed with ${doctor.full_name || 'Dr. Sarah Jenkins'}`,
+        subject: emailSubject,
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #16a34a; border-radius: 8px;">
-            <div style="background: #16a34a; color: white; padding: 16px; border-radius: 6px; text-align: center;">
-              <h2 style="margin: 0;">Appointment Confirmed by Doctor</h2>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid ${isReschedule ? '#f59e0b' : '#16a34a'}; border-radius: 8px;">
+            <div style="background: ${isReschedule ? '#d97706' : '#16a34a'}; color: white; padding: 16px; border-radius: 6px; text-align: center;">
+              <h2 style="margin: 0;">${isReschedule ? 'Appointment Reschedule Proposed' : 'Appointment Confirmed by Doctor'}</h2>
             </div>
             <div style="padding: 20px 0;">
               <p>Dear <strong>${appt.patient_name || 'Patient'}</strong> & Caregiver,</p>
               <p>Your physician has reviewed the consultation request and sent the following scheduling response:</p>
               
-              <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 16px; margin: 16px 0; border-radius: 4px;">
-                <p style="font-size: 16px; font-weight: bold; color: #166534; margin: 0 0 8px 0;">
+              <div style="background: ${isReschedule ? '#fffbeb' : '#f0fdf4'}; border-left: 4px solid ${isReschedule ? '#f59e0b' : '#16a34a'}; padding: 16px; margin: 16px 0; border-radius: 4px;">
+                <p style="font-size: 16px; font-weight: bold; color: ${isReschedule ? '#92400e' : '#166534'}; margin: 0 0 8px 0;">
                   💬 "${notes}"
                 </p>
-                <p style="margin: 4px 0; color: #334155;"><strong>⏰ Confirmed Slot:</strong> ${proposedSlot}</p>
+                <p style="margin: 4px 0; color: #334155;"><strong>⏰ Proposed Slot:</strong> ${proposedSlot}</p>
                 <p style="margin: 4px 0; color: #334155;"><strong>🏥 Location / Desk:</strong> ${appt.clinic_hospital} (${appt.hospital_details || 'Suite 400'})</p>
               </div>
 
-              <p style="font-size: 13px; color: #64748b;">Please bring your latest blood pressure, blood sugar records, and current medication bottles.</p>
+              ${isReschedule 
+                ? '<p style="font-size: 14px; color: #b45309; font-weight: 600;">Please log into your Caregiver Portal to Accept this proposed date or submit an alternative date.</p>'
+                : '<p style="font-size: 13px; color: #64748b;">Please bring your latest blood pressure, blood sugar records, and current medication bottles.</p>'
+              }
             </div>
           </div>
         `
@@ -503,11 +517,127 @@ async function doctorRespond(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: `Appointment confirmed and slot sent to Patient and Caregiver (${recipients.join(', ')})`,
+      message: isReschedule
+        ? `Reschedule proposal sent to Caretaker & Patient: ${proposedSlot}`
+        : `Appointment confirmed and slot sent to Patient and Caregiver (${recipients.join(', ')})`,
       appointment: updated
     });
   } catch (error) {
     console.error('[CareBridge Doctor Respond Error]:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Caretaker responds to Doctor's proposed reschedule date (accept or counter-propose)
+ */
+async function caretakerRespondReschedule(req, res) {
+  try {
+    const { id } = req.params;
+    const { action, counter_date, counter_time, notes } = req.body;
+    const user = req.user;
+
+    const appt = db.prepare(`
+      SELECT a.*, u.full_name as patient_name, u.email as patient_email
+      FROM patient_appointments a
+      JOIN users u ON a.user_id = u.id
+      WHERE a.id = ?
+    `).get(id);
+
+    if (!appt) {
+      return res.status(404).json({ success: false, message: 'Appointment not found.' });
+    }
+
+    if (action === 'accept') {
+      const confirmedDate = appt.doctor_available_slot ? appt.doctor_available_slot.split(' at ')[0] : appt.appointment_date;
+      const confirmedTime = appt.doctor_available_slot && appt.doctor_available_slot.includes(' at ') ? appt.doctor_available_slot.split(' at ')[1] : appt.appointment_time;
+
+      db.prepare(`
+        UPDATE patient_appointments
+        SET status = 'confirmed_by_doctor',
+            appointment_date = ?,
+            appointment_time = ?,
+            doctor_response_notes = COALESCE(doctor_response_notes, '') || ' | Caregiver accepted proposed date.'
+        WHERE id = ?
+      `).run(confirmedDate, confirmedTime, id);
+
+      const updated = db.prepare('SELECT * FROM patient_appointments WHERE id = ?').get(id);
+
+      // Notify Doctor
+      const doctorUser = appt.doctor_id 
+        ? db.prepare('SELECT * FROM users WHERE id = ?').get(appt.doctor_id) 
+        : db.prepare("SELECT * FROM users WHERE role = 'doctor' LIMIT 1").get();
+        
+      if (doctorUser && doctorUser.email) {
+        await sendEmail({
+          to: doctorUser.email,
+          subject: `✅ [Reschedule Accepted] Caregiver confirmed ${confirmedDate} for ${appt.patient_name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #16a34a; border-radius: 8px;">
+              <h2 style="color: #166534; margin: 0 0 12px 0;">Rescheduled Consultation Confirmed</h2>
+              <p>Caregiver <strong>${user.full_name || 'Sarah Davis'}</strong> has accepted your proposed slot for <strong>${appt.patient_name}</strong>.</p>
+              <div style="background: #f0fdf4; padding: 12px 16px; border-left: 4px solid #16a34a; border-radius: 4px;">
+                <p style="margin: 4px 0;">📅 <strong>Confirmed Date:</strong> ${confirmedDate}</p>
+                <p style="margin: 4px 0;">⏰ <strong>Confirmed Time:</strong> ${confirmedTime}</p>
+              </div>
+            </div>
+          `
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Proposed date accepted and consultation confirmed.',
+        appointment: updated
+      });
+    } else {
+      // Counter-propose another date
+      const newDate = counter_date || appt.appointment_date;
+      const newTime = counter_time || appt.appointment_time || '10:00 AM';
+      const counterNotes = notes || 'Caretaker requested alternate date due to patient schedule.';
+
+      db.prepare(`
+        UPDATE patient_appointments
+        SET status = 'requested',
+            appointment_date = ?,
+            appointment_time = ?,
+            purpose = purpose || ' (Caretaker counter: ' || ? || ')'
+        WHERE id = ?
+      `).run(newDate, newTime, counterNotes, id);
+
+      const updated = db.prepare('SELECT * FROM patient_appointments WHERE id = ?').get(id);
+
+      // Notify Doctor
+      const doctorUser = appt.doctor_id 
+        ? db.prepare('SELECT * FROM users WHERE id = ?').get(appt.doctor_id) 
+        : db.prepare("SELECT * FROM users WHERE role = 'doctor' LIMIT 1").get();
+
+      if (doctorUser && doctorUser.email) {
+        await sendEmail({
+          to: doctorUser.email,
+          subject: `🔄 [Alternate Date Requested] Caregiver counter-proposed ${newDate} for ${appt.patient_name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #665BE8; border-radius: 8px;">
+              <h2 style="color: #373B8F; margin: 0 0 12px 0;">Alternate Appointment Requested</h2>
+              <p>Caregiver <strong>${user.full_name || 'Sarah Davis'}</strong> could not make the proposed slot and requested an alternative date for <strong>${appt.patient_name}</strong>:</p>
+              <div style="background: #f8fafc; padding: 12px 16px; border-left: 4px solid #665BE8; border-radius: 4px;">
+                <p style="margin: 4px 0;">📅 <strong>Requested Date:</strong> ${newDate}</p>
+                <p style="margin: 4px 0;">⏰ <strong>Requested Time:</strong> ${newTime}</p>
+                <p style="margin: 4px 0;">📝 <strong>Reason / Notes:</strong> ${counterNotes}</p>
+              </div>
+            </div>
+          `
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Alternative date submitted to Doctor.',
+        appointment: updated
+      });
+    }
+  } catch (error) {
+    console.error('[CareBridge Caretaker Respond Reschedule Error]:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -574,6 +704,7 @@ module.exports = {
   requestAppointment,
   getDoctorRequests,
   doctorRespond,
+  caretakerRespondReschedule,
   checkConflict,
   updateAppointment,
   deleteAppointment,

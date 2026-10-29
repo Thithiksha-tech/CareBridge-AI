@@ -15,4 +15,9 @@ router.post('/emergency', healthController.triggerEmergency);
 router.get('/medication-stock', healthController.getMedicationStock);
 router.post('/medication-stock/:id', healthController.updateMedicationStock);
 
+// Doctor Lab Reports Comparison & Trend Analysis Portal
+router.get('/lab-reports', healthController.getLabReports);
+router.get('/lab-reports/compare', healthController.compareLabReports);
+router.post('/lab-reports', healthController.createLabReport);
+
 module.exports = router;

@@ -308,6 +308,89 @@ async function seed() {
     console.log('[CareBridge Seeder] Seeded Caretaker-to-Doctor appointment request with 3-way response.');
   }
 
+  // 7. Seed Comparative Clinical Lab Reports (Discharge Baseline vs Post-Op Day 4 vs Current)
+  const labCheck = db.prepare("SELECT count(*) as count FROM patient_lab_reports WHERE patient_id = ?").get(robert.id);
+  if (labCheck.count === 0) {
+    const insertLab = db.prepare(`
+      INSERT INTO patient_lab_reports (patient_id, report_date, stage_name, facility, lab_values, clinical_summary)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    // Baseline (Discharge Day 0 - Oct 24, 2026)
+    insertLab.run(
+      robert.id,
+      '2026-10-24',
+      'Discharge Baseline (Day 0)',
+      'St. Jude Memorial Hospital - Acute Inpatient Lab',
+      JSON.stringify({
+        troponin_i: { value: 42.5, unit: 'ng/L', normalRange: '< 14 ng/L', status: 'critical_high', label: 'hs-Troponin I' },
+        bnp: { value: 780, unit: 'pg/mL', normalRange: '< 300 pg/mL', status: 'high', label: 'NT-proBNP' },
+        crp: { value: 8.4, unit: 'mg/L', normalRange: '< 2.0 mg/L', status: 'high', label: 'hs-CRP' },
+        total_cholesterol: { value: 245, unit: 'mg/dL', normalRange: '< 200 mg/dL', status: 'high', label: 'Total Cholesterol' },
+        ldl_c: { value: 158, unit: 'mg/dL', normalRange: '< 70 mg/dL', status: 'critical_high', label: 'LDL Cholesterol' },
+        hdl_c: { value: 36, unit: 'mg/dL', normalRange: '> 40 mg/dL', status: 'low', label: 'HDL Cholesterol' },
+        triglycerides: { value: 255, unit: 'mg/dL', normalRange: '< 150 mg/dL', status: 'high', label: 'Triglycerides' },
+        creatinine: { value: 1.15, unit: 'mg/dL', normalRange: '0.7 - 1.2 mg/dL', status: 'normal', label: 'Serum Creatinine' },
+        egfr: { value: 72, unit: 'mL/min/1.73m²', normalRange: '> 60', status: 'normal', label: 'eGFR' },
+        fasting_glucose: { value: 135, unit: 'mg/dL', normalRange: '70 - 100 mg/dL', status: 'high', label: 'Fasting Blood Sugar' },
+        hba1c: { value: 6.8, unit: '%', normalRange: '< 5.7%', status: 'high', label: 'HbA1c' },
+        platelets: { value: 230, unit: '10³/µL', normalRange: '150 - 450', status: 'normal', label: 'Platelet Count' },
+        inr: { value: 1.05, unit: 'ratio', normalRange: '0.9 - 1.1', status: 'normal', label: 'INR (Coagulation)' }
+      }),
+      'Post-PCI peak elevation of myocardial necrosis markers. Hyperlipidemia marked with LDL 158. Statin 80mg and dual antiplatelet therapy initiated.'
+    );
+
+    // Stage 2: Post-Op Day 4 (Oct 28, 2026)
+    insertLab.run(
+      robert.id,
+      '2026-10-28',
+      'Post-Op Day 4 (Early Recovery)',
+      'Cardiology Pavilion Outpatient Lab',
+      JSON.stringify({
+        troponin_i: { value: 18.2, unit: 'ng/L', normalRange: '< 14 ng/L', status: 'elevated', label: 'hs-Troponin I' },
+        bnp: { value: 450, unit: 'pg/mL', normalRange: '< 300 pg/mL', status: 'elevated', label: 'NT-proBNP' },
+        crp: { value: 4.2, unit: 'mg/L', normalRange: '< 2.0 mg/L', status: 'elevated', label: 'hs-CRP' },
+        total_cholesterol: { value: 205, unit: 'mg/dL', normalRange: '< 200 mg/dL', status: 'borderline', label: 'Total Cholesterol' },
+        ldl_c: { value: 112, unit: 'mg/dL', normalRange: '< 70 mg/dL', status: 'high', label: 'LDL Cholesterol' },
+        hdl_c: { value: 39, unit: 'mg/dL', normalRange: '> 40 mg/dL', status: 'borderline', label: 'HDL Cholesterol' },
+        triglycerides: { value: 210, unit: 'mg/dL', normalRange: '< 150 mg/dL', status: 'borderline', label: 'Triglycerides' },
+        creatinine: { value: 1.02, unit: 'mg/dL', normalRange: '0.7 - 1.2 mg/dL', status: 'normal', label: 'Serum Creatinine' },
+        egfr: { value: 78, unit: 'mL/min/1.73m²', normalRange: '> 60', status: 'normal', label: 'eGFR' },
+        fasting_glucose: { value: 112, unit: 'mg/dL', normalRange: '70 - 100 mg/dL', status: 'borderline', label: 'Fasting Blood Sugar' },
+        hba1c: { value: 6.6, unit: '%', normalRange: '< 5.7%', status: 'elevated', label: 'HbA1c' },
+        platelets: { value: 222, unit: '10³/µL', normalRange: '150 - 450', status: 'normal', label: 'Platelet Count' },
+        inr: { value: 1.04, unit: 'ratio', normalRange: '0.9 - 1.1', status: 'normal', label: 'INR (Coagulation)' }
+      }),
+      'Encouraging reduction in cardiac troponin (57% reduction). Myocardial healing evident. Inflammatory CRP descending.'
+    );
+
+    // Stage 3: Current Week 1 Follow-Up (Nov 03, 2026)
+    insertLab.run(
+      robert.id,
+      '2026-11-03',
+      'Current Recovery (Week 1 Follow-Up)',
+      'St. Jude Medical Clinical Laboratories',
+      JSON.stringify({
+        troponin_i: { value: 8.2, unit: 'ng/L', normalRange: '< 14 ng/L', status: 'normal', label: 'hs-Troponin I' },
+        bnp: { value: 240, unit: 'pg/mL', normalRange: '< 300 pg/mL', status: 'normal', label: 'NT-proBNP' },
+        crp: { value: 1.8, unit: 'mg/L', normalRange: '< 2.0 mg/L', status: 'normal', label: 'hs-CRP' },
+        total_cholesterol: { value: 168, unit: 'mg/dL', normalRange: '< 200 mg/dL', status: 'normal', label: 'Total Cholesterol' },
+        ldl_c: { value: 68, unit: 'mg/dL', normalRange: '< 70 mg/dL', status: 'normal', label: 'LDL Cholesterol' },
+        hdl_c: { value: 44, unit: 'mg/dL', normalRange: '> 40 mg/dL', status: 'normal', label: 'HDL Cholesterol' },
+        triglycerides: { value: 162, unit: 'mg/dL', normalRange: '< 150 mg/dL', status: 'borderline', label: 'Triglycerides' },
+        creatinine: { value: 0.95, unit: 'mg/dL', normalRange: '0.7 - 1.2 mg/dL', status: 'normal', label: 'Serum Creatinine' },
+        egfr: { value: 84, unit: 'mL/min/1.73m²', normalRange: '> 60', status: 'normal', label: 'eGFR' },
+        fasting_glucose: { value: 98, unit: 'mg/dL', normalRange: '70 - 100 mg/dL', status: 'normal', label: 'Fasting Blood Sugar' },
+        hba1c: { value: 6.2, unit: '%', normalRange: '< 5.7%', status: 'borderline', label: 'HbA1c' },
+        platelets: { value: 215, unit: '10³/µL', normalRange: '150 - 450', status: 'normal', label: 'Platelet Count' },
+        inr: { value: 1.02, unit: 'ratio', normalRange: '0.9 - 1.1', status: 'normal', label: 'INR (Coagulation)' }
+      }),
+      'Optimal clinical response. Troponin I normalized to 8.2 ng/L. LDL-C achieved guideline target < 70 mg/dL (now 68 mg/dL). Renal contrast load fully cleared.'
+    );
+
+    console.log('[CareBridge Seeder] Seeded comparative clinical lab panels across 3 post-discharge stages.');
+  }
+
   console.log('[CareBridge Seeder] Seeding finished successfully!');
 }
 

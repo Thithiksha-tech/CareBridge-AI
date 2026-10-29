@@ -74,6 +74,13 @@ export const CaregiverPage: React.FC = () => {
   const [generatingReport, setGeneratingReport] = useState(false);
   const reportPrintRef = useRef<HTMLDivElement>(null);
 
+  // Reschedule Counter Form State
+  const [selectedApptForCounter, setSelectedApptForCounter] = useState<Appointment | null>(null);
+  const [counterDate, setCounterDate] = useState('2026-11-12');
+  const [counterTime, setCounterTime] = useState('11:00 AM');
+  const [counterNotes, setCounterNotes] = useState('Caretaker schedule preference / patient transit available on this day.');
+  const [submittingCounter, setSubmittingCounter] = useState(false);
+
   // Caretaker AI Chatbot state
   const [caregiverQuestion, setCaregiverQuestion] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -109,7 +116,11 @@ export const CaregiverPage: React.FC = () => {
       }
 
       if (apptRes) {
-        setAppointments(apptRes.appointments || []);
+        const appts = (apptRes as any).appointments || [
+          ...((apptRes as any).upcoming || []),
+          ...((apptRes as any).past || [])
+        ];
+        setAppointments(appts);
       }
 
       if (discRes) {
@@ -200,6 +211,60 @@ export const CaregiverPage: React.FC = () => {
       });
     } finally {
       setSubmittingAppt(false);
+    }
+  };
+
+  const handleAcceptDoctorDate = async (apptId: number) => {
+    try {
+      await appointmentService.caretakerRespondReschedule(apptId, { action: 'accept' });
+      showToast({
+        type: 'success',
+        title: 'Consultation Confirmed',
+        message: 'Doctor’s proposed date accepted. Consultation locked in calendar.',
+      });
+      loadCaretakerData();
+    } catch (err: any) {
+      showToast({
+        type: 'error',
+        title: 'Action Failed',
+        message: err.response?.data?.message || 'Could not accept proposed slot.',
+      });
+    }
+  };
+
+  const handleOpenCounterModal = (appt: Appointment) => {
+    setSelectedApptForCounter(appt);
+    setCounterDate('2026-11-12');
+    setCounterTime('11:00 AM');
+  };
+
+  const handleSubmitCounterDate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedApptForCounter) return;
+
+    setSubmittingCounter(true);
+    try {
+      await appointmentService.caretakerRespondReschedule(selectedApptForCounter.id, {
+        action: 'counter',
+        counter_date: counterDate,
+        counter_time: counterTime,
+        notes: counterNotes
+      });
+      showToast({
+        type: 'success',
+        title: 'Counter Date Submitted',
+        message: `Alternative date (${counterDate} at ${counterTime}) sent back to doctor.`,
+      });
+      setSelectedApptForCounter(null);
+      loadCaretakerData();
+    } catch (err: any) {
+      showToast({
+        type: 'error',
+        title: 'Submit Failed',
+        message: err.response?.data?.message || 'Could not send alternative date.',
+      });
+    } finally {
+      setSubmittingCounter(false);
     }
   };
 
@@ -332,6 +397,146 @@ export const CaregiverPage: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* ========================================================================= */}
+      {/* FEATURE: DOCTOR COMMUNICATIONS & CONSULTATION RESPONSES */}
+      {/* ========================================================================= */}
+      <Card className="p-6 sm:p-7 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F0EEFF]">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#373B8F]/10 text-[#373B8F] text-xs font-bold mb-1">
+              <Stethoscope className="w-3.5 h-3.5" />
+              <span>Doctor Communications & Scheduling</span>
+            </div>
+            <h3 className="text-lg font-bold text-[#24264A]">
+              Physician Consultation & Reschedule Responses
+            </h3>
+            <p className="text-xs text-[#73758E]">
+              Real-time scheduling communications, doctor confirmations, and proposed date change requests
+            </p>
+          </div>
+
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => setShowBookModal(true)}
+            icon={<CalendarCheck className="w-4 h-4" />}
+            className="bg-[#278567] hover:bg-[#1E604A] self-start sm:self-auto"
+          >
+            + Request Doctor Visit
+          </Button>
+        </div>
+
+        {/* Reschedule Proposals awaiting Caretaker acceptance */}
+        {appointments.filter((a) => a.status === 'reschedule_proposed').length > 0 && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600 animate-pulse" />
+              <span>Action Required: Physician Proposed New Consultation Date</span>
+            </h4>
+
+            {appointments
+              .filter((a) => a.status === 'reschedule_proposed')
+              .map((appt) => (
+                <div
+                  key={appt.id}
+                  className="p-5 rounded-2xl bg-amber-50/80 border-2 border-amber-300 space-y-3 animate-in fade-in duration-200"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-amber-200/70 text-amber-900 flex items-center justify-center font-bold">
+                        <Stethoscope className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <strong className="text-sm text-amber-950 block">
+                          {appt.doctor_name || 'Dr. Sarah Jenkins, MD'}
+                        </strong>
+                        <span className="text-[11px] text-amber-800">
+                          {appt.specialty || 'Cardiology'} • {appt.clinic_hospital}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-amber-900 bg-amber-200/80 px-2.5 py-1 rounded-full self-start sm:self-auto">
+                      🗓️ Reschedule Proposed
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-white/90 border border-amber-200 text-xs space-y-1.5">
+                    <p className="text-amber-900 font-medium">
+                      💬 <strong>Doctor's Note:</strong> "{appt.doctor_response_notes || 'Doctor had a schedule conflict on the requested date and proposed an alternative slot.'}"
+                    </p>
+                    <p className="text-sm font-bold text-[#24264A]">
+                      ⏰ <strong>Proposed New Slot:</strong> {appt.doctor_available_slot || `${appt.appointment_date} at ${appt.appointment_time || '10:30 AM'}`}
+                    </p>
+                    <p className="text-[11px] text-[#73758E]">
+                      Original request was for: {appt.appointment_date} at {appt.appointment_time || '10:00 AM'}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenCounterModal(appt)}
+                      className="w-full sm:w-auto text-xs font-bold text-amber-900 border-amber-300 bg-white hover:bg-amber-100"
+                    >
+                      Propose Another Date
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => handleAcceptDoctorDate(appt.id)}
+                      icon={<Check className="w-4 h-4" />}
+                      className="w-full sm:w-auto bg-[#278567] hover:bg-[#1E604A] text-white font-bold text-xs"
+                    >
+                      ✓ Accept Doctor's Proposed Date
+                    </Button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {/* Confirmed and Upcoming Visits */}
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[#73758E]">
+            Confirmed & Active Consultations
+          </h4>
+
+          {appointments.filter((a) => a.status === 'confirmed_by_doctor' || a.status === 'scheduled' || a.status === 'upcoming').length === 0 ? (
+            <p className="text-xs text-[#73758E] italic p-3 bg-[#F7F8FF] rounded-xl border border-[#ECEAFC]">
+              No confirmed upcoming visits yet. Click "+ Request Doctor Visit" above to book.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {appointments
+                .filter((a) => a.status === 'confirmed_by_doctor' || a.status === 'scheduled' || a.status === 'upcoming')
+                .map((appt) => (
+                  <div
+                    key={appt.id}
+                    className="p-4 rounded-2xl bg-[#F7F8FF] border border-[#ECEAFC] space-y-2 text-xs hover:border-[#DCD6FC] transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <strong className="text-xs text-[#24264A]">{appt.doctor_name || 'Dr. Sarah Jenkins'}</strong>
+                      <span className="text-[10px] font-bold text-[#278567] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        ✓ Confirmed
+                      </span>
+                    </div>
+                    <div className="space-y-0.5 text-[11px] text-[#73758E]">
+                      <p className="font-semibold text-[#373B8F]">
+                        📅 {appt.appointment_date} {appt.appointment_time ? `at ${appt.appointment_time}` : ''}
+                      </p>
+                      <p>🏥 {appt.clinic_hospital} ({appt.hospital_details || 'Suite 400'})</p>
+                      {appt.doctor_feedback && (
+                        <p className="text-[#24264A] italic pt-1">"{appt.doctor_feedback}"</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* ========================================================================= */}
       {/* FEATURE HIGHLIGHT: PATIENT RECOVERY GRAPH */}
@@ -984,6 +1189,68 @@ export const CaregiverPage: React.FC = () => {
                   className="bg-[#278567] hover:bg-[#1E604A] text-white"
                 >
                   Send Request to Doctor
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Caretaker Counter-Proposes Another Date */}
+      {selectedApptForCounter && (
+        <div className="fixed inset-0 bg-[#24264A]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-elevated border border-[#ECEAFC] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0EEFF]">
+              <div>
+                <h3 className="text-base font-bold text-[#24264A]">Propose Alternative Date</h3>
+                <p className="text-xs text-[#73758E]">Submit a date/time that works better for patient</p>
+              </div>
+              <button onClick={() => setSelectedApptForCounter(null)} className="text-[#73758E] hover:text-[#24264A]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitCounterDate} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-[#24264A] mb-1">Preferred Date</label>
+                <input
+                  type="date"
+                  required
+                  value={counterDate}
+                  onChange={(e) => setCounterDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#F7F8FF] border border-[#DCD6FC] text-xs font-bold text-[#24264A]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#24264A] mb-1">Preferred Time</label>
+                <input
+                  type="text"
+                  required
+                  value={counterTime}
+                  onChange={(e) => setCounterTime(e.target.value)}
+                  placeholder="11:00 AM"
+                  className="w-full px-3 py-2 rounded-xl bg-[#F7F8FF] border border-[#DCD6FC] text-xs font-bold text-[#24264A]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#24264A] mb-1">Reason / Note for Doctor</label>
+                <textarea
+                  rows={3}
+                  value={counterNotes}
+                  onChange={(e) => setCounterNotes(e.target.value)}
+                  placeholder="e.g. Caretaker schedule preference / patient transit available on this day..."
+                  className="w-full p-3 rounded-xl bg-[#F7F8FF] border border-[#DCD6FC] text-xs text-[#24264A]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#F0EEFF]">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedApptForCounter(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" size="md" loading={submittingCounter} className="bg-[#278567]">
+                  Send to Dr. Jenkins
                 </Button>
               </div>
             </form>

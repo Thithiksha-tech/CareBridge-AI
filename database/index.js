@@ -201,6 +201,18 @@ function initDatabase() {
       FOREIGN KEY (discharge_id) REFERENCES discharge_records(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS patient_lab_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL,
+      report_date TEXT NOT NULL,
+      stage_name TEXT NOT NULL,
+      facility TEXT,
+      lab_values TEXT NOT NULL,
+      clinical_summary TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (patient_id) REFERENCES users (id) ON DELETE CASCADE
+    );
   `);
 
   // Safe table column migrations

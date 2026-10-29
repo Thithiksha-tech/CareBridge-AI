@@ -62,9 +62,33 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickLogin = (demoEmail: string, demoPass: string) => {
+  const handleQuickLogin = async (demoEmail: string, demoPass: string, autoLogin = true) => {
     setEmail(demoEmail);
     setPassword(demoPass);
+    if (autoLogin) {
+      setLoading(true);
+      setError(null);
+      try {
+        const loggedUser = await login(demoEmail, demoPass);
+        showToast({
+          type: 'success',
+          title: 'Welcome back!',
+          message: `Authenticated as ${loggedUser.name} (${loggedUser.role.toUpperCase()}).`,
+        });
+        if (loggedUser.role === 'doctor' || loggedUser.role === 'clinician') {
+          navigate('/doctor');
+        } else if (loggedUser.role === 'caretaker' || loggedUser.role === 'caregiver') {
+          navigate('/caregiver');
+        } else {
+          navigate('/dashboard');
+        }
+      } catch (err: any) {
+        const msg = err.response?.data?.message || 'Authentication failed. Please check credentials.';
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   return (
@@ -210,30 +234,47 @@ export const LoginPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => handleQuickLogin('robert.davis@example.com', 'password123')}
-                  className="p-2.5 rounded-xl bg-[#F0EEFF] hover:bg-[#8C91F5]/20 text-[#373B8F] text-xs font-semibold border border-[#DCD6FC] text-left transition-colors flex flex-col justify-between"
+                  onClick={() => handleQuickLogin('robert.davis@example.com', 'password123', true)}
+                  className="p-3 rounded-2xl bg-[#F0EEFF] hover:bg-[#8C91F5]/25 text-[#373B8F] text-xs font-semibold border-2 border-[#DCD6FC] hover:border-[#665BE8] text-left transition-all flex flex-col justify-between group cursor-pointer shadow-2xs"
                 >
-                  <span className="inline-block text-[10px] uppercase font-bold text-[#665BE8]">🧑‍🦽 Patient</span>
-                  <span className="block font-bold text-xs text-[#24264A] mt-0.5">Robert Davis</span>
-                  <span className="text-[9px] text-[#73758E] truncate">Blood & Sugar Logs</span>
+                  <div>
+                    <span className="inline-block text-[10px] uppercase font-extrabold text-[#665BE8]">🧑‍🦽 Patient Role</span>
+                    <strong className="block font-bold text-xs text-[#24264A] mt-0.5">Robert Davis</strong>
+                    <span className="text-[10px] text-[#73758E] block truncate">Patient Vitals & Reminders</span>
+                  </div>
+                  <span className="text-[10px] font-extrabold text-[#665BE8] mt-2 group-hover:translate-x-0.5 transition-transform">
+                    1-Click Login →
+                  </span>
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => handleQuickLogin('sarah.davis@example.com', 'password123')}
-                  className="p-2.5 rounded-xl bg-[#F0EEFF] hover:bg-[#8C91F5]/20 text-[#373B8F] text-xs font-semibold border border-[#DCD6FC] text-left transition-colors flex flex-col justify-between"
+                  onClick={() => handleQuickLogin('sarah.davis@example.com', 'password123', true)}
+                  className="p-3 rounded-2xl bg-[#EBF7F2] hover:bg-[#C2E8D9]/40 text-[#278567] text-xs font-semibold border-2 border-[#C2E8D9] hover:border-[#278567] text-left transition-all flex flex-col justify-between group cursor-pointer shadow-2xs"
                 >
-                  <span className="inline-block text-[10px] uppercase font-bold text-[#278567]">🤝 Caretaker</span>
-                  <span className="block font-bold text-xs text-[#24264A] mt-0.5">Sarah Davis</span>
-                  <span className="text-[9px] text-[#73758E] truncate">BP & Pill Stock</span>
+                  <div>
+                    <span className="inline-block text-[10px] uppercase font-extrabold text-[#278567]">🤝 Caretaker Role</span>
+                    <strong className="block font-bold text-xs text-[#24264A] mt-0.5">Sarah Davis</strong>
+                    <span className="text-[10px] text-[#73758E] block truncate">Pill Stock & Reschedule</span>
+                  </div>
+                  <span className="text-[10px] font-extrabold text-[#278567] mt-2 group-hover:translate-x-0.5 transition-transform">
+                    1-Click Login →
+                  </span>
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => handleQuickLogin('doctor.jenkins@example.com', 'password123')}
-                  className="p-2.5 rounded-xl bg-[#F0EEFF] hover:bg-[#8C91F5]/20 text-[#373B8F] text-xs font-semibold border border-[#DCD6FC] text-left transition-colors flex flex-col justify-between"
+                  onClick={() => handleQuickLogin('doctor.jenkins@example.com', 'password123', true)}
+                  className="p-3 rounded-2xl bg-[#F0F1FA] hover:bg-[#D1D4EB]/40 text-[#373B8F] text-xs font-semibold border-2 border-[#D1D4EB] hover:border-[#373B8F] text-left transition-all flex flex-col justify-between group cursor-pointer shadow-2xs"
                 >
-                  <span className="inline-block text-[10px] uppercase font-bold text-[#373B8F]">🩺 Doctor</span>
-                  <span className="block font-bold text-xs text-[#24264A] mt-0.5">Dr. Jenkins</span>
-                  <span className="text-[9px] text-[#73758E] truncate">Appt & 3-Way Comms</span>
+                  <div>
+                    <span className="inline-block text-[10px] uppercase font-extrabold text-[#373B8F]">🩺 Doctor Role</span>
+                    <strong className="block font-bold text-xs text-[#24264A] mt-0.5">Dr. Sarah Jenkins</strong>
+                    <span className="text-[10px] text-[#73758E] block truncate">Calendar & Lab Portal</span>
+                  </div>
+                  <span className="text-[10px] font-extrabold text-[#373B8F] mt-2 group-hover:translate-x-0.5 transition-transform">
+                    1-Click Login →
+                  </span>
                 </button>
               </div>
             </div>

@@ -12,17 +12,8 @@ interface TopNavigationProps {
 export const TopNavigation: React.FC<TopNavigationProps> = ({
   onToggleSidebar,
 }) => {
-  const { user, updateUser } = useAuth();
-  const navigate = useNavigate();
-
+  const { user } = useAuth();
   const currentRole = user?.role || 'patient';
-
-  const handleSwitchRole = (role: 'patient' | 'caretaker' | 'doctor') => {
-    updateUser({ role });
-    if (role === 'patient') navigate('/dashboard');
-    else if (role === 'caretaker') navigate('/caregiver');
-    else if (role === 'doctor') navigate('/doctor');
-  };
 
   const getRoleHeader = () => {
     if (currentRole === 'doctor' || currentRole === 'clinician') {
@@ -63,46 +54,34 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Dynamic Role Switcher for Seamless Testing & Multi-Role Support */}
-        <div className="flex items-center p-1 rounded-2xl bg-[#F0EEFF] border border-[#DCD6FC] shadow-2xs">
-          <button
-            onClick={() => handleSwitchRole('patient')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
-              currentRole === 'patient'
-                ? 'bg-[#665BE8] text-white shadow-xs'
-                : 'text-[#73758E] hover:text-[#24264A]'
-            }`}
-            title="Switch to Patient View"
-          >
-            <UserIcon className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Patient</span>
-          </button>
-
-          <button
-            onClick={() => handleSwitchRole('caretaker')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
-              currentRole === 'caretaker' || currentRole === 'caregiver'
-                ? 'bg-[#278567] text-white shadow-xs'
-                : 'text-[#73758E] hover:text-[#24264A]'
-            }`}
-            title="Switch to Caretaker View"
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Caretaker</span>
-          </button>
-
-          <button
-            onClick={() => handleSwitchRole('doctor')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
-              currentRole === 'doctor' || currentRole === 'clinician'
-                ? 'bg-[#373B8F] text-white shadow-xs'
-                : 'text-[#73758E] hover:text-[#24264A]'
-            }`}
-            title="Switch to Doctor View"
-          >
-            <Stethoscope className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Doctor</span>
-          </button>
+        {/* Secured Authenticated Role Indicator (Strict Role Security - No Manual Switching) */}
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-2xs ${
+          currentRole === 'doctor' || currentRole === 'clinician'
+            ? 'bg-[#F0F1FA] border-[#D1D4EB] text-[#373B8F]'
+            : currentRole === 'caretaker' || currentRole === 'caregiver'
+            ? 'bg-[#EBF7F2] border-[#C2E8D9] text-[#278567]'
+            : 'bg-[#F0EEFF] border-[#DCD6FC] text-[#665BE8]'
+        }`}>
+          <div className="w-2 h-2 rounded-full bg-current animate-pulse" />
+          <span className="hidden sm:inline text-slate-500 font-normal">Account Role:</span>
+          <span className="font-bold flex items-center gap-1">
+            {currentRole === 'doctor' || currentRole === 'clinician' ? (
+              <>
+                <Stethoscope className="w-3.5 h-3.5 inline" />
+                <span>Physician (Doctor)</span>
+              </>
+            ) : currentRole === 'caretaker' || currentRole === 'caregiver' ? (
+              <>
+                <Users className="w-3.5 h-3.5 inline" />
+                <span>Caretaker / Family</span>
+              </>
+            ) : (
+              <>
+                <UserIcon className="w-3.5 h-3.5 inline" />
+                <span>Patient Account</span>
+              </>
+            )}
+          </span>
         </div>
 
         {/* Verification Status Pill */}

@@ -23,7 +23,9 @@ import {
   PhoneCall,
   FileText,
   ShieldAlert,
-  Bell
+  Bell,
+  FlaskConical,
+  RotateCcw
 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
@@ -33,6 +35,7 @@ import { useToast } from '../components/common/Toast';
 import { useAuth } from '../context/AuthContext';
 import { appointmentService, healthService, dischargeService } from '../services/api';
 import type { Appointment, HealthLog, HealthMetrics, User as UserType, DischargeRecord } from '../types';
+import { LabReportsPortal } from '../components/doctor/LabReportsPortal';
 
 export const DoctorPage: React.FC = () => {
   const { user } = useAuth();
@@ -47,7 +50,7 @@ export const DoctorPage: React.FC = () => {
   const [latestDischarge, setLatestDischarge] = useState<DischargeRecord | null>(null);
 
   // Calendar State
-  const [selectedDate, setSelectedDate] = useState<string>('2026-11-05');
+  const [selectedDate, setSelectedDate] = useState<string>('2026-11-10');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('10:30 AM');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
@@ -55,9 +58,12 @@ export const DoctorPage: React.FC = () => {
 
   // Response Modal state
   const [selectedRequest, setSelectedRequest] = useState<Appointment | null>(null);
+  const [respDate, setRespDate] = useState<string>('2026-11-10');
+  const [respTime, setRespTime] = useState<string>('10:30 AM');
   const [availableSlot, setAvailableSlot] = useState('');
   const [responseNotes, setResponseNotes] = useState('');
   const [responding, setResponding] = useState(false);
+  const [isRescheduling, setIsRescheduling] = useState(false);
 
   // View Patient Record Modal
   const [viewingPatientRecord, setViewingPatientRecord] = useState<boolean>(false);
@@ -113,26 +119,41 @@ export const DoctorPage: React.FC = () => {
     checkForScheduleConflict(dateStr);
   };
 
-  const checkForScheduleConflict = (dateStr: string) => {
-    // Check against existing scheduled appointments
+  const checkForScheduleConflict = (dateStr: string, excludeRequestId?: number) => {
+    // Standardize comparison format (e.g. 2026-11-10 or Nov 10)
+    const dayNumber = dateStr.split('-')[2] || dateStr;
+    const formattedShort = `Nov ${dayNumber}`;
+
     const existing = allAppointments.find((a) => {
+      if (excludeRequestId && a.id === excludeRequestId) return false;
+      if (a.status === 'cancelled') return false;
       if (!a.appointment_date) return false;
+
       return (
         a.appointment_date.includes(dateStr) ||
-        (dateStr === '2026-11-05' && a.appointment_date.includes('Nov 05')) ||
-        (dateStr === '2026-11-12' && a.appointment_date.includes('Nov 12')) ||
-        (dateStr === '2026-11-04' && a.appointment_date.includes('Nov 04'))
+        a.appointment_date.includes(formattedShort) ||
+        (dateStr.includes('11-10') && (a.appointment_date.includes('Nov 10') || a.appointment_date.includes('2026-11-10'))) ||
+        (dateStr.includes('11-05') && (a.appointment_date.includes('Nov 05') || a.appointment_date.includes('2026-11-05'))) ||
+        (dateStr.includes('11-04') && (a.appointment_date.includes('Nov 04') || a.appointment_date.includes('2026-11-04'))) ||
+        (dateStr.includes('11-12') && (a.appointment_date.includes('Nov 12') || a.appointment_date.includes('2026-11-12'))) ||
+        (dateStr.includes('11-20') && (a.appointment_date.includes('Nov 20') || a.appointment_date.includes('2026-11-20')))
       );
+    }) || requests.find((r) => {
+      if (excludeRequestId && r.id === excludeRequestId) return false;
+      if (r.status !== 'confirmed_by_doctor') return false;
+      return r.appointment_date?.includes(dateStr) || r.appointment_date?.includes(formattedShort);
     });
 
     if (existing) {
       setConflictAppointment(existing);
       setConflictWarning(
-        `You have an appointment on this day already (Booked with ${existing.doctor_name || 'Cardiology follow-up'} - ${existing.purpose || 'Post-PCI Review'}). You can choose another day or another time.`
+        `You are already occupied for this date (${existing.doctor_name || 'Dr. Jenkins'} with ${existing.patient_name || 'Robert Davis'} at ${existing.appointment_time || '10:30 AM'}). You can choose another day or another time.`
       );
+      return true;
     } else {
       setConflictAppointment(null);
       setConflictWarning(null);
+      return false;
     }
   };
 
@@ -145,31 +166,94 @@ export const DoctorPage: React.FC = () => {
 
   const openResponseModal = (req: Appointment) => {
     setSelectedRequest(req);
-    const defaultDate = req.appointment_date || '2026-11-05';
+    const defaultDate = req.appointment_date || '2026-11-10';
     const defaultTime = req.appointment_time || '10:30 AM';
-    setAvailableSlot(`${defaultDate} at ${defaultTime} - Cardiology Pavilion Suite 400`);
-    setResponseNotes(
-      `Confirmed. Dr. Sarah Jenkins is available on ${defaultDate} at ${defaultTime}. You can come and visit me at this time. Please bring home blood pressure and blood sugar logs.`
-    );
-    // Check if that slot has a conflict
-    checkForScheduleConflict(defaultDate);
+    setRespDate(defaultDate);
+    setRespTime(defaultTime);
+
+    const hasConflict = checkForScheduleConflict(defaultDate, req.id);
+    setIsRescheduling(hasConflict);
+
+    const slotStr = `${defaultDate} at ${defaultTime} - St. Jude Cardiology Pavilion`;
+    setAvailableSlot(slotStr);
+
+    if (hasConflict) {
+      setResponseNotes(
+        `Dr. Sarah Jenkins is already occupied on ${defaultDate}. Proposing alternative consultation slot. Please confirm if this new time works for the patient.`
+      );
+    } else {
+      setResponseNotes(
+        `Confirmed. Dr. Sarah Jenkins is available on ${defaultDate} at ${defaultTime}. You can come and visit me at this time. Please bring home blood pressure and blood sugar logs.`
+      );
+    }
   };
 
-  const handleSendDoctorResponse = async (e: React.FormEvent) => {
+  const handleRespDateChange = (newDate: string) => {
+    setRespDate(newDate);
+    const hasConflict = checkForScheduleConflict(newDate, selectedRequest?.id);
+    const slotStr = `${newDate} at ${respTime} - St. Jude Cardiology Pavilion`;
+    setAvailableSlot(slotStr);
+
+    if (hasConflict) {
+      setIsRescheduling(true);
+      setResponseNotes(
+        `Dr. Sarah Jenkins is already occupied on ${newDate}. Proposing alternative consultation slot. Please confirm if this new time works for the patient.`
+      );
+    } else if (selectedRequest && newDate !== selectedRequest.appointment_date) {
+      setIsRescheduling(true);
+      setResponseNotes(
+        `Dr. Sarah Jenkins proposed new consultation date: ${newDate} at ${respTime}. Please confirm if this time works for you.`
+      );
+    } else {
+      setIsRescheduling(false);
+      setResponseNotes(
+        `Confirmed. Dr. Sarah Jenkins is available on ${newDate} at ${respTime}. You can come and visit me at this time. Please bring home blood pressure and blood sugar logs.`
+      );
+    }
+  };
+
+  const handleRespTimeChange = (newTime: string) => {
+    setRespTime(newTime);
+    setAvailableSlot(`${respDate} at ${newTime} - St. Jude Cardiology Pavilion`);
+  };
+
+  const handleSendDoctorResponse = async (e: React.FormEvent, forceReschedule?: boolean) => {
     e.preventDefault();
     if (!selectedRequest) return;
+
+    const shouldReschedule = forceReschedule !== undefined ? forceReschedule : isRescheduling;
 
     setResponding(true);
     try {
       await appointmentService.doctorRespond(selectedRequest.id, {
         available_slot: availableSlot,
         response_notes: responseNotes,
+        confirmed_date: respDate,
+        confirmed_time: respTime,
+        is_reschedule: shouldReschedule,
+        status: shouldReschedule ? 'reschedule_proposed' : 'confirmed_by_doctor'
       });
+
+      // Update local appointments list immediately so calendar reflects the booked/occupied date
+      if (!shouldReschedule) {
+        setAllAppointments((prev) => [
+          ...prev,
+          {
+            ...selectedRequest,
+            appointment_date: respDate,
+            appointment_time: respTime,
+            status: 'confirmed_by_doctor',
+            doctor_name: 'Dr. Sarah Jenkins, MD, FACC'
+          }
+        ]);
+      }
 
       showToast({
         type: 'success',
-        title: '3-Way Response Dispatched!',
-        message: 'Confirmed slot and visit instructions emailed to Caretaker & Patient.',
+        title: shouldReschedule ? '🗓️ Reschedule Proposal Sent' : '✅ Consultation Confirmed!',
+        message: shouldReschedule
+          ? `Proposed new slot (${respDate} at ${respTime}) emailed to Caretaker for acceptance.`
+          : `Confirmed slot on ${respDate} locked in calendar and emailed to Caretaker & Patient.`,
       });
 
       setSelectedRequest(null);
@@ -194,23 +278,37 @@ export const DoctorPage: React.FC = () => {
   // Emergency logs from health_logs (BP/Sugar emergencies or SOS alerts)
   const emergencyLogs = patientLogs.filter((l) => l.emergency_flag === 1);
 
-  // Calendar dates for November 2026 demo view
-  const calendarDays = [
-    { day: 1, dateStr: '2026-11-01', hasAppt: false },
-    { day: 2, dateStr: '2026-11-02', hasAppt: false },
-    { day: 3, dateStr: '2026-11-03', hasAppt: false },
-    { day: 4, dateStr: '2026-11-04', hasAppt: true, title: 'PCI Follow-Up (Robert Davis)' },
-    { day: 5, dateStr: '2026-11-05', hasAppt: true, title: 'Cardiology Check (Robert Davis)' },
-    { day: 6, dateStr: '2026-11-06', hasAppt: false },
-    { day: 7, dateStr: '2026-11-07', hasAppt: false },
-    { day: 8, dateStr: '2026-11-08', hasAppt: false },
-    { day: 9, dateStr: '2026-11-09', hasAppt: false },
-    { day: 10, dateStr: '2026-11-10', hasAppt: false },
-    { day: 11, dateStr: '2026-11-11', hasAppt: false },
-    { day: 12, dateStr: '2026-11-12', hasAppt: true, title: 'Primary Care (Dr. Vance)' },
-    { day: 13, dateStr: '2026-11-13', hasAppt: false },
-    { day: 14, dateStr: '2026-11-14', hasAppt: false },
-  ];
+  // Full Month Dynamic Interactive Calendar (November 2026: 30 Days)
+  const calendarDays = Array.from({ length: 30 }, (_, idx) => {
+    const day = idx + 1;
+    const dayStr = day < 10 ? `0${day}` : `${day}`;
+    const dateStr = `2026-11-${dayStr}`;
+    const formattedShort = `Nov ${dayStr}`;
+
+    const matchedAppt = allAppointments.find((a) => {
+      if (!a.appointment_date) return false;
+      if (a.status === 'cancelled') return false;
+      return (
+        a.appointment_date.includes(dateStr) ||
+        a.appointment_date.includes(formattedShort) ||
+        (day === 4 && a.appointment_date.includes('Nov 04')) ||
+        (day === 5 && a.appointment_date.includes('Nov 05')) ||
+        (day === 12 && a.appointment_date.includes('Nov 12')) ||
+        (day === 20 && a.appointment_date.includes('Nov 20'))
+      );
+    }) || requests.find((r) => {
+      if (r.status !== 'confirmed_by_doctor') return false;
+      return r.appointment_date?.includes(dateStr) || r.appointment_date?.includes(formattedShort);
+    });
+
+    return {
+      day,
+      dateStr,
+      hasAppt: !!matchedAppt,
+      title: matchedAppt ? `${matchedAppt.doctor_name || 'Dr. Jenkins'} with ${matchedAppt.patient_name || 'Robert Davis'}` : undefined,
+      appointment: matchedAppt
+    };
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -560,6 +658,11 @@ export const DoctorPage: React.FC = () => {
       </Card>
 
       {/* ========================================================================= */}
+      {/* FEATURE: LAB REPORTS COMPARISON & BIOMARKER TREND ANALYSIS PORTAL */}
+      {/* ========================================================================= */}
+      <LabReportsPortal patientId={patientInfo?.id || 1} patientName={patientInfo?.full_name || 'Robert Davis'} />
+
+      {/* ========================================================================= */}
       {/* FEATURE 3: VIEW PATIENT RECORD DOSSIER MODAL */}
       {/* ========================================================================= */}
       {viewingPatientRecord && (
@@ -713,12 +816,12 @@ export const DoctorPage: React.FC = () => {
       {/* ========================================================================= */}
       {selectedRequest && (
         <div className="fixed inset-0 bg-[#24264A]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-elevated border border-[#ECEAFC] animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-elevated border border-[#ECEAFC] animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#F0EEFF]">
               <div>
-                <h3 className="text-lg font-bold text-[#24264A]">Confirm Consultation Slot</h3>
+                <h3 className="text-lg font-bold text-[#24264A]">Review & Respond to Appointment</h3>
                 <p className="text-xs text-[#73758E]">
-                  Dispatches available time & clinic room to caretaker & patient
+                  Confirm consultation slot or negotiate another date with caretaker
                 </p>
               </div>
               <button onClick={() => setSelectedRequest(null)} className="text-[#73758E] hover:text-[#24264A]">
@@ -726,35 +829,99 @@ export const DoctorPage: React.FC = () => {
               </button>
             </div>
 
+            {/* Requested Details Box */}
+            <div className="p-3.5 rounded-2xl bg-[#F7F8FF] border border-[#ECEAFC] text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[#73758E]">Patient:</span>
+                <strong className="text-[#24264A]">{selectedRequest.patient_name || 'Robert Davis'}</strong>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#73758E]">Requested Date & Time:</span>
+                <span className="font-bold text-[#373B8F]">{selectedRequest.appointment_date} at {selectedRequest.appointment_time || '10:30 AM'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#73758E]">Reason:</span>
+                <span className="text-[#24264A] truncate max-w-[260px]">{selectedRequest.purpose}</span>
+              </div>
+            </div>
+
             {/* Conflict Warning inside modal if doctor schedules on an occupied day */}
             {conflictWarning && (
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 space-y-1">
-                <strong>⚠️ Note on Double-Booking:</strong>
-                <p>{conflictWarning}</p>
+              <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-xs text-amber-900 space-y-2 animate-in slide-in-from-top-1">
+                <div className="flex items-center gap-2 font-bold text-sm text-amber-800">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>You are already occupied for this date. You can choose another day or another time.</span>
+                </div>
+                <p className="text-amber-800 leading-relaxed font-medium">
+                  {conflictWarning}
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleRespDateChange('2026-11-11')}
+                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs"
+                  >
+                    Switch to Free Day (Nov 11)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRespDateChange('2026-11-13')}
+                    className="px-2.5 py-1 bg-white border border-amber-300 text-amber-800 rounded-lg font-bold text-xs"
+                  >
+                    Switch to Nov 13
+                  </button>
+                </div>
               </div>
             )}
 
-            <form onSubmit={handleSendDoctorResponse} className="space-y-4 text-xs">
+            <form onSubmit={(e) => handleSendDoctorResponse(e, isRescheduling)} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-[#24264A] mb-1">
+                    Select Consultation Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={respDate}
+                    onChange={(e) => handleRespDateChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#F7F8FF] border border-[#DCD6FC] text-xs font-bold text-[#24264A] focus:outline-none focus:border-[#373B8F]"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-[#24264A] mb-1">
+                    Select Consultation Time
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={respTime}
+                    onChange={(e) => handleRespTimeChange(e.target.value)}
+                    placeholder="10:30 AM"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F7F8FF] border border-[#DCD6FC] text-xs font-bold text-[#24264A] focus:outline-none focus:border-[#373B8F]"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-[#24264A] mb-1">
-                  Confirmed Time Slot & Facility Location
+                  Proposed Slot & Facility
                 </label>
                 <input
                   type="text"
                   required
                   value={availableSlot}
                   onChange={(e) => setAvailableSlot(e.target.value)}
-                  placeholder="e.g. Nov 05, 2026 at 10:30 AM - Cardiology Pavilion Suite 400"
                   className="w-full px-3 py-2 rounded-xl bg-[#F7F8FF] border border-[#DCD6FC] text-xs font-bold text-[#24264A] focus:outline-none focus:border-[#373B8F]"
                 />
               </div>
 
               <div>
                 <label className="block font-bold text-[#24264A] mb-1">
-                  Doctor's Instructions & Visit Preparation
+                  Physician Message to Caretaker
                 </label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   required
                   value={responseNotes}
                   onChange={(e) => setResponseNotes(e.target.value)}
@@ -763,19 +930,36 @@ export const DoctorPage: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#F0EEFF]">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-[#F0EEFF]">
                 <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedRequest(null)}>
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="md"
-                  loading={responding}
-                  className="bg-[#373B8F] text-white"
-                >
-                  Send Confirmation Slot
-                </Button>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  {isRescheduling ? (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="md"
+                      loading={responding}
+                      onClick={(e) => handleSendDoctorResponse(e, true)}
+                      icon={<RotateCcw className="w-3.5 h-3.5" />}
+                      className="bg-amber-600 hover:bg-amber-700 text-white w-full sm:w-auto font-bold"
+                    >
+                      Propose Alternate Date to Caretaker
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="md"
+                      loading={responding}
+                      className="bg-[#373B8F] text-white w-full sm:w-auto font-bold"
+                    >
+                      ✓ Confirm Appointment Slot
+                    </Button>
+                  )}
+                </div>
               </div>
             </form>
           </div>
