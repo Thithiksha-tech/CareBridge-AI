@@ -81,6 +81,10 @@ export const CaregiverPage: React.FC = () => {
   const [counterNotes, setCounterNotes] = useState('Caretaker schedule preference / patient transit available on this day.');
   const [submittingCounter, setSubmittingCounter] = useState(false);
 
+  // Line Graph Interactive State
+  const [activeGraphMetric, setActiveGraphMetric] = useState<'all' | 'adherence' | 'bp' | 'sugar'>('all');
+  const [hoveredPointIdx, setHoveredPointIdx] = useState<number | null>(null);
+
   // Caretaker AI Chatbot state
   const [caregiverQuestion, setCaregiverQuestion] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -557,45 +561,261 @@ export const CaregiverPage: React.FC = () => {
           </span>
         </div>
 
-        {/* Visual Graph Render (Clean SVG Chart) */}
+        {/* Visual Line Graph Render (Interactive SVG Line Chart) */}
         <div className="space-y-4">
-          <div className="h-56 w-full p-4 rounded-2xl bg-[#F7F8FF] border border-[#ECEAFC] flex flex-col justify-between">
-            <div className="flex items-center justify-between text-xs font-bold text-[#73758E] pb-2 border-b border-[#ECEAFC]">
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-[#278567]" />
-                <span className="text-[#24264A]">Pill Adherence Rate (%)</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-[#665BE8]" />
-                <span className="text-[#24264A]">Systolic BP (mmHg)</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-amber-500" />
-                <span className="text-[#24264A]">Blood Sugar (mg/dL)</span>
-              </span>
+          <div className="w-full p-5 rounded-3xl bg-white border border-[#ECEAFC] shadow-2xs space-y-4">
+            {/* Legend & Filter Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#ECEAFC]">
+              <div className="flex items-center gap-4 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setActiveGraphMetric(activeGraphMetric === 'adherence' ? 'all' : 'adherence')}
+                  className={`flex items-center gap-2 px-2.5 py-1 rounded-xl transition-all cursor-pointer ${
+                    activeGraphMetric === 'adherence' || activeGraphMetric === 'all'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 ring-2 ring-emerald-400/20'
+                      : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  <span className="w-3.5 h-1 bg-[#278567] rounded-full" />
+                  <span>Pill Adherence Line (%)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveGraphMetric(activeGraphMetric === 'bp' ? 'all' : 'bp')}
+                  className={`flex items-center gap-2 px-2.5 py-1 rounded-xl transition-all cursor-pointer ${
+                    activeGraphMetric === 'bp' || activeGraphMetric === 'all'
+                      ? 'bg-[#F0EEFF] text-[#373B8F] border border-[#DCD6FC] ring-2 ring-[#665BE8]/20'
+                      : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  <span className="w-3.5 h-1 bg-[#665BE8] rounded-full" />
+                  <span>Systolic BP Line (mmHg)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveGraphMetric(activeGraphMetric === 'sugar' ? 'all' : 'sugar')}
+                  className={`flex items-center gap-2 px-2.5 py-1 rounded-xl transition-all cursor-pointer ${
+                    activeGraphMetric === 'sugar' || activeGraphMetric === 'all'
+                      ? 'bg-amber-50 text-amber-900 border border-amber-300 ring-2 ring-amber-400/20'
+                      : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  <span className="w-3.5 h-1 bg-[#F59E0B] rounded-full" />
+                  <span>Blood Sugar Line (mg/dL)</span>
+                </button>
+              </div>
+
+              <div className="text-[11px] font-bold text-[#73758E] flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Continuous 7-Day Trajectory: Recovery Trending Positively</span>
+              </div>
             </div>
 
-            {/* Bars / Points Visualizer */}
-            <div className="grid grid-cols-7 gap-3 h-36 items-end pt-3">
-              {recoveryGraphPoints.map((pt, idx) => (
-                <div key={idx} className="flex flex-col items-center gap-1.5 h-full justify-end group">
-                  <div className="w-full flex items-end justify-center gap-1 h-28">
-                    {/* Adherence Bar */}
-                    <div
-                      style={{ height: `${pt.adherence}%` }}
-                      className="w-3.5 bg-gradient-to-t from-[#278567] to-[#2E9B79] rounded-t-md transition-all group-hover:brightness-110"
-                      title={`${pt.day} Adherence: ${pt.adherence}%`}
+            {/* SVG Line Graph Canvas */}
+            <div className="relative w-full overflow-x-auto">
+              <svg
+                viewBox="0 0 680 210"
+                className="w-full h-56 min-w-[580px] overflow-visible select-none"
+              >
+                <defs>
+                  {/* Adherence Gradient Area */}
+                  <linearGradient id="adherenceGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#278567" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#278567" stopOpacity="0.0" />
+                  </linearGradient>
+
+                  {/* BP Gradient Area */}
+                  <linearGradient id="bpGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#665BE8" stopOpacity="0.18" />
+                    <stop offset="100%" stopColor="#665BE8" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+
+                {/* Horizontal Guide Grid Lines & Y-Axis Labels */}
+                <line x1="45" y1="35" x2="635" y2="35" stroke="#ECEAFC" strokeDasharray="3 3" />
+                <text x="35" y="38" textAnchor="end" className="text-[9px] fill-[#73758E] font-mono">100% / 140</text>
+
+                <line x1="45" y1="80" x2="635" y2="80" stroke="#ECEAFC" strokeDasharray="3 3" />
+                <text x="35" y="83" textAnchor="end" className="text-[9px] fill-[#73758E] font-mono">80% / 125</text>
+
+                <line x1="45" y1="125" x2="635" y2="125" stroke="#ECEAFC" strokeDasharray="3 3" />
+                <text x="35" y="128" textAnchor="end" className="text-[9px] fill-[#73758E] font-mono">60% / 110</text>
+
+                <line x1="45" y1="170" x2="635" y2="170" stroke="#DCD6FC" strokeWidth="1.5" />
+                <text x="35" y="173" textAnchor="end" className="text-[9px] fill-[#73758E] font-mono">40% / 95</text>
+
+                {/* Vertical Grid Lines at Each Day */}
+                {[45, 142, 239, 336, 433, 530, 627].map((x, i) => (
+                  <line key={`vgrid-${i}`} x1={x} y1="30" x2={x} y2="170" stroke="#F0EEFF" strokeWidth="1" />
+                ))}
+
+                {/* 1. ADHERENCE LINE & AREA (Emerald) */}
+                {(activeGraphMetric === 'all' || activeGraphMetric === 'adherence') && (
+                  <g>
+                    {/* Area fill */}
+                    <polygon
+                      points="45,170 45,123.3 142,88.3 239,65.0 336,53.3 433,41.7 530,48.7 627,39.3 627,170"
+                      fill="url(#adherenceGrad)"
                     />
-                    {/* BP Bar */}
-                    <div
-                      style={{ height: `${(pt.bpSys / 160) * 100}%` }}
-                      className="w-3.5 bg-gradient-to-t from-[#665BE8] to-[#8C91F5] rounded-t-md transition-all group-hover:brightness-110"
-                      title={`${pt.day} BP: ${pt.bpSys}/${pt.bpDia} mmHg`}
+                    {/* Stroke line */}
+                    <polyline
+                      fill="none"
+                      stroke="#278567"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points="45,123.3 142,88.3 239,65.0 336,53.3 433,41.7 530,48.7 627,39.3"
                     />
-                  </div>
-                  <span className="text-[11px] font-bold text-[#73758E]">{pt.day}</span>
-                </div>
-              ))}
+                    {/* Data Points */}
+                    {[
+                      { x: 45, y: 123.3, val: 60 },
+                      { x: 142, y: 88.3, val: 75 },
+                      { x: 239, y: 65.0, val: 85 },
+                      { x: 336, y: 53.3, val: 90 },
+                      { x: 433, y: 41.7, val: 95 },
+                      { x: 530, y: 48.7, val: 92 },
+                      { x: 627, y: 39.3, val: 96 },
+                    ].map((pt, i) => (
+                      <g key={`adh-pt-${i}`}>
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={hoveredPointIdx === i ? 6 : 4.5}
+                          fill="#FFFFFF"
+                          stroke="#278567"
+                          strokeWidth="2.5"
+                          className="transition-all cursor-pointer"
+                          onMouseEnter={() => setHoveredPointIdx(i)}
+                          onMouseLeave={() => setHoveredPointIdx(null)}
+                        />
+                        {/* Callout badges on first and last points */}
+                        {(i === 0 || i === 6 || hoveredPointIdx === i) && (
+                          <text
+                            x={pt.x}
+                            y={pt.y - 10}
+                            textAnchor="middle"
+                            className="text-[10px] font-black fill-[#278567] font-mono"
+                          >
+                            {pt.val}%
+                          </text>
+                        )}
+                      </g>
+                    ))}
+                  </g>
+                )}
+
+                {/* 2. SYSTOLIC BP LINE (Violet) */}
+                {(activeGraphMetric === 'all' || activeGraphMetric === 'bp') && (
+                  <g>
+                    {/* Area fill */}
+                    <polygon
+                      points="45,170 45,72.0 142,91.6 239,108.4 336,114.0 433,119.6 530,116.8 627,119.6 627,170"
+                      fill="url(#bpGrad)"
+                    />
+                    {/* Stroke line */}
+                    <polyline
+                      fill="none"
+                      stroke="#665BE8"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points="45,72.0 142,91.6 239,108.4 336,114.0 433,119.6 530,116.8 627,119.6"
+                    />
+                    {/* Data Points */}
+                    {[
+                      { x: 45, y: 72.0, val: 135 },
+                      { x: 142, y: 91.6, val: 128 },
+                      { x: 239, y: 108.4, val: 122 },
+                      { x: 336, y: 114.0, val: 120 },
+                      { x: 433, y: 119.6, val: 118 },
+                      { x: 530, y: 116.8, val: 119 },
+                      { x: 627, y: 119.6, val: 118 },
+                    ].map((pt, i) => (
+                      <g key={`bp-pt-${i}`}>
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={hoveredPointIdx === i ? 5.5 : 4}
+                          fill="#FFFFFF"
+                          stroke="#665BE8"
+                          strokeWidth="2.5"
+                          className="transition-all cursor-pointer"
+                          onMouseEnter={() => setHoveredPointIdx(i)}
+                          onMouseLeave={() => setHoveredPointIdx(null)}
+                        />
+                        {(i === 0 || i === 6 || hoveredPointIdx === i) && (
+                          <text
+                            x={pt.x}
+                            y={pt.y + 16}
+                            textAnchor="middle"
+                            className="text-[10px] font-black fill-[#373B8F] font-mono"
+                          >
+                            {pt.val}
+                          </text>
+                        )}
+                      </g>
+                    ))}
+                  </g>
+                )}
+
+                {/* 3. BLOOD SUGAR LINE (Amber Dashed) */}
+                {(activeGraphMetric === 'all' || activeGraphMetric === 'sugar') && (
+                  <g>
+                    {/* Stroke line */}
+                    <polyline
+                      fill="none"
+                      stroke="#F59E0B"
+                      strokeWidth="2.5"
+                      strokeDasharray="4 4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points="45,72.0 142,91.6 239,108.4 336,116.8 433,119.6 530,122.4 627,119.6"
+                    />
+                    {/* Data Points */}
+                    {[
+                      { x: 45, y: 72.0, val: 115 },
+                      { x: 142, y: 91.6, val: 108 },
+                      { x: 239, y: 108.4, val: 102 },
+                      { x: 336, y: 116.8, val: 99 },
+                      { x: 433, y: 119.6, val: 98 },
+                      { x: 530, y: 122.4, val: 97 },
+                      { x: 627, y: 119.6, val: 98 },
+                    ].map((pt, i) => (
+                      <circle
+                        key={`sugar-pt-${i}`}
+                        cx={pt.x}
+                        cy={pt.y}
+                        r="3.5"
+                        fill="#FFFFFF"
+                        stroke="#F59E0B"
+                        strokeWidth="2"
+                      />
+                    ))}
+                  </g>
+                )}
+
+                {/* X-Axis Day Labels */}
+                {recoveryGraphPoints.map((pt, i) => {
+                  const x = 45 + i * 97;
+                  const isHovered = hoveredPointIdx === i;
+                  return (
+                    <g key={`xlabel-${i}`}>
+                      <text
+                        x={x}
+                        y="195"
+                        textAnchor="middle"
+                        className={`text-[11px] font-bold ${
+                          isHovered ? 'fill-[#24264A] font-black' : 'fill-[#73758E]'
+                        }`}
+                      >
+                        {pt.day}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
             </div>
           </div>
 

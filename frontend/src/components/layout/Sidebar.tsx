@@ -43,8 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   if (isDoctor) {
     navItems = [
-      { label: 'Doctor Workspace', path: '/doctor', icon: Stethoscope, badge: 'Alerts & Records' },
-      { label: 'Schedule & Calendar', path: '/appointments', icon: CalendarDays },
+      { label: 'Doctor Workspace & Triage', path: '/doctor', icon: Stethoscope, badge: 'Alerts & Records' },
       { label: 'AI Clinical Assistant', path: '/ai-assistant', icon: BotMessageSquare, highlight: true },
       { label: 'Settings & Email', path: '/settings', icon: Settings },
     ];

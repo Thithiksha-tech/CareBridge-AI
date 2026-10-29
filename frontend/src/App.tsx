@@ -143,7 +143,14 @@ export const App: React.FC = () => {
                   </RoleRoute>
                 }
               />
-              <Route path="/appointments" element={<AppointmentsPage />} />
+              <Route
+                path="/appointments"
+                element={
+                  <RoleRoute allowedRoles={['patient', 'caretaker', 'caregiver']}>
+                    <AppointmentsPage />
+                  </RoleRoute>
+                }
+              />
               <Route path="/ai-assistant" element={<AIChatPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
