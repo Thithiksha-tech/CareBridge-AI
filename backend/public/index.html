@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareBridge AI — Patient Post-Discharge Care & Recovery Dashboard</title>
+  <meta name="description" content="AI-powered platform translating complex hospital discharge paperwork into clear, actionable care checklists and real-time reminders for patients and family caregivers.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <nav class="navbar" id="main-nav">
+    <div style="display: flex; align-items: center;">
+      <a href="index.html" class="nav-brand" id="brand-logo">
+        <div class="brand-icon">🌉</div>
+        <div>
+          <div class="brand-title">CareBridge AI</div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">Post-Hospital Discharge Care System</div>
+        </div>
+      </a>
+
+      <!-- Multi-Page Navigation Links -->
+      <div class="nav-links">
+        <a href="index.html" class="nav-link active">📊 Care Dashboard</a>
+        <a href="appointments.html" class="nav-link">🩺 Doctor Appointments</a>
+        <a href="reminders.html" class="nav-link">⏰ Timed Care Reminders</a>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <!-- Upload Discharge Paperwork -->
+      <button class="btn btn-outline btn-sm" id="btn-open-upload-modal">
+        📄 Upload Discharge Summary
+      </button>
+
+      <!-- Instant Email Reminder Trigger -->
+      <button class="btn btn-outline btn-sm" id="btn-quick-email-test" title="Verify Email Reminder Bridge">
+        ✉️ Test Email Reminder
+      </button>
+
+      <!-- Logged-in Patient Badge -->
+      <div class="patient-badge" id="patient-badge">
+        <div class="patient-avatar" id="patient-avatar-initials">PT</div>
+        <span id="patient-name-display">Loading Patient...</span>
+      </div>
+
+      <!-- Logout / Switch Account -->
+      <button class="btn btn-outline btn-sm" id="btn-auth-action">
+        Logout
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Dashboard Layout -->
+  <div class="dashboard-container" id="dashboard-container">
+
+    <!-- Left & Center Content: Care Plan & Tasks -->
+    <div class="main-content">
+
+      <!-- Hero Welcome & Progress Bar -->
+      <div class="hero-welcome-card" id="hero-welcome">
+        <div class="welcome-info">
+          <h1 id="welcome-greeting">Welcome to CareBridge, Patient 👋</h1>
+          <p class="welcome-subtitle">
+            Your personalized post-discharge care plan, daily tasks checklist, and doctor follow-up roadmap.
+          </p>
+        </div>
+
+        <!-- Real-time Task Progress Portal -->
+        <div class="welcome-stats">
+          <div class="progress-widget" id="progress-widget">
+            <div class="progress-circle-wrap">
+              <svg class="progress-circle-svg" viewBox="0 0 64 64">
+                <circle class="circle-bg" cx="32" cy="32" r="27"></circle>
+                <circle class="circle-fill" id="progress-circle-fill" cx="32" cy="32" r="27"></circle>
+              </svg>
+              <div class="progress-number" id="progress-percentage-label">0%</div>
+            </div>
+            <div class="progress-meta">
+              <span class="progress-meta-label">Daily Care Progress</span>
+              <span class="progress-meta-value" id="progress-count-label">0 of 0 Completed</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Module 1: Daily Tasks & Checklist (Calculates progress & displays completed vs pending) -->
+      <section class="dashboard-card" id="tasks-section">
+        <div class="card-header-flex">
+          <div class="card-title-wrap">
+            <span class="card-icon">✅</span>
+            <h2 class="card-title">Daily Care Tasks Checklist</h2>
+          </div>
+
+          <!-- Filter Pills (All, Pending, Completed) -->
+          <div class="task-filter-pills" id="task-filter-pills">
+            <button class="filter-pill active" data-filter="all" id="pill-filter-all">All (<span id="count-all">0</span>)</button>
+            <button class="filter-pill" data-filter="pending" id="pill-filter-pending">Pending (<span id="count-pending">0</span>)</button>
+            <button class="filter-pill" data-filter="completed" id="pill-filter-completed">Completed (<span id="count-completed">0</span>)</button>
+          </div>
+        </div>
+
+        <div class="tasks-list" id="tasks-list-container">
+          <!-- Dynamic Task Cards populated by JavaScript -->
+          <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            Loading care tasks...
+          </div>
+        </div>
+      </section>
+
+      <!-- Module 2: Saved Care Plan (Medications, Exercises, Diet, Red Flags, Roadmap) -->
+      <section class="dashboard-card" id="care-plan-section">
+        <div class="card-header-flex">
+          <div class="card-title-wrap">
+            <span class="card-icon">📋</span>
+            <h2 class="card-title">Saved Care Plan (Discharge Instructions)</h2>
+          </div>
+          <button class="btn btn-outline btn-sm" id="btn-bulk-confirm-instructions">
+            ✓ Confirm All Instructions
+          </button>
+        </div>
+
+        <!-- Care Plan Tabs -->
+        <div class="care-plan-tabs" id="care-plan-tabs">
+          <button class="care-tab-btn active" data-tab="medications" id="tab-medications">💊 Medications (<span id="count-tab-meds">0</span>)</button>
+          <button class="care-tab-btn" data-tab="exercises" id="tab-exercises">🏃 Exercises & Activity (<span id="count-tab-exercises">0</span>)</button>
+          <button class="care-tab-btn" data-tab="diet" id="tab-diet">🥗 Nutrition & Hydration (<span id="count-tab-diet">0</span>)</button>
+          <button class="care-tab-btn" data-tab="appointments" id="tab-appointments">🩺 Doctor Visits (<span id="count-tab-appts">0</span>)</button>
+          <button class="care-tab-btn" data-tab="red_flags" id="tab-red-flags">🚨 Red Flag Warnings (<span id="count-tab-flags">0</span>)</button>
+          <button class="care-tab-btn" data-tab="roadmap" id="tab-roadmap">🗺️ Recovery Roadmap</button>
+        </div>
+
+        <!-- Care Plan Items List (Displays Original vs Simplified Text side-by-side with User Review) -->
+        <div class="care-plan-content-panel" id="care-plan-content-panel">
+          <!-- Populated by JavaScript -->
+        </div>
+      </section>
+
+      <!-- Module 3: Regular Doctor Appointments (In order to confirm healthiness) -->
+      <section class="dashboard-card" id="appointments-section">
+        <div class="card-header-flex">
+          <div class="card-title-wrap">
+            <span class="card-icon">🩺</span>
+            <h2 class="card-title">Regular Doctor Appointments & Health Confirmation</h2>
+          </div>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Confirm your healing progress with your care team</span>
+        </div>
+
+        <div class="appointments-grid" id="appointments-grid-container">
+          <!-- Dynamic Appointments Cards -->
+        </div>
+        <div style="text-align: right; margin-top: 1rem;">
+          <a href="appointments.html" style="font-size: 0.85rem; font-weight: 600; color: var(--primary); text-decoration: none;">
+            View Full Doctor Consultation & Feedback Log →
+          </a>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Right Side Dock: AI Care Assistant Bot (Queries & Questions Section) -->
+    <aside class="ai-chatbot-panel" id="chatbot-dock">
+      <div class="chat-header">
+        <div class="chat-header-title">
+          <div class="ai-neural-symbol">
+            <span class="ai-pulse-dot"></span>
+            <!-- Custom Neural Heart & Clinical Stethoscope SVG Icon -->
+            <svg viewBox="0 0 24 24">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+              <polyline points="7 12 10 9 14 15 17 12"></polyline>
+            </svg>
+          </div>
+          <div>
+            <div style="font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.4rem;">
+              CareBridge Neural AI
+              <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3);">CLINICAL</span>
+            </div>
+            <div class="chat-online-badge">
+              <span class="chat-online-dot"></span> Discharge Care Assistant
+            </div>
+          </div>
+        </div>
+        <button class="btn-clear-context" id="btn-clear-chat" title="Clear chat history" style="color: #94a3b8; font-size: 0.8rem;">
+          Clear
+        </button>
+      </div>
+
+      <!-- Task Context Selection Banner -->
+      <div class="chat-context-banner" id="chat-context-banner" style="display: none;">
+        <span class="chat-context-text" id="chat-context-text">Inquiring about task...</span>
+        <button class="btn-clear-context" id="btn-close-task-context" title="Clear task focus">✕</button>
+      </div>
+
+      <!-- Chat Messages Scroll Area -->
+      <div class="chat-messages" id="chat-messages-container">
+        <!-- Initial Welcome Message from AI -->
+        <div class="chat-message message-assistant">
+          <div class="message-bubble">
+            Hello! I am your <strong>CareBridge AI Health Assistant</strong>. 
+            I have analyzed your discharge instructions and am here to help you and your family attenders.
+            <br><br>
+            You can ask me questions about your medications, exercises, food guidelines, or click <strong>"Ask AI about this task"</strong> on any item in your checklist!
+          </div>
+          <span class="message-meta">Just now</span>
+        </div>
+      </div>
+
+      <!-- Quick Suggested Prompt Chips -->
+      <div class="chat-quick-chips" id="chat-quick-chips">
+        <button class="chip-btn" data-prompt="Can I take this medication with food?">Take with food?</button>
+        <button class="chip-btn" data-prompt="Is it safe to do this exercise today?">Exercise safety?</button>
+        <button class="chip-btn" data-prompt="What warning signs should I watch out for?">Red flags?</button>
+        <button class="chip-btn" data-prompt="What should I prepare for my upcoming doctor appointment?">Doctor visit prep</button>
+      </div>
+
+      <!-- Input Bar -->
+      <div class="chat-input-bar">
+        <input type="text" class="chat-input" id="chat-input-field" placeholder="Ask a question about your care..." autocomplete="off">
+        <button class="btn-chat-send" id="btn-send-chat" title="Send Question">➤</button>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Modal 1: Upload Discharge Paperwork -->
+  <div class="modal-backdrop" id="modal-upload-discharge">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Upload Discharge Paperwork</h3>
+        <button class="btn-close-modal" id="btn-close-upload-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="dropzone" id="upload-dropzone">
+          <div class="dropzone-icon">📁</div>
+          <p style="font-weight: 600; color: var(--text-main);">Drag and drop your Discharge PDF or Text file here</p>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Supports PDF, TXT, DOCX, PNG (up to 25MB)</p>
+          <input type="file" id="file-input-element" style="display: none;" accept=".pdf,.txt,.docx,.doc,.png,.jpg,.jpeg">
+          <button class="btn btn-primary btn-sm" id="btn-select-file" style="margin-top: 1rem;">Browse Files</button>
+        </div>
+
+        <div style="text-align: center; margin: 1rem 0; font-size: 0.85rem; color: var(--text-muted);">— OR PASTE DISCHARGE TEXT DIRECTLY —</div>
+
+        <div class="form-group">
+          <label class="form-label" for="textarea-direct-text">Discharge Notes / Instructions:</label>
+          <textarea id="textarea-direct-text" class="form-input" rows="4" placeholder="Paste discharge summary text here..."></textarea>
+        </div>
+
+        <button class="btn btn-primary" id="btn-submit-discharge-text" style="width: 100%;">
+          Analyze with AI & Build Care Plan
+        </button>
+
+        <div id="upload-progress-indicator" style="display: none; text-align: center; margin-top: 1rem; color: var(--primary); font-size: 0.9rem; font-weight: 600;">
+          ⏳ AI is parsing document & simplifying clinical terms...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Patient Login / Registration -->
+  <div class="modal-backdrop" id="modal-auth">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 id="auth-modal-title">Patient Portal Login</h3>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.5rem;">
+          <button class="care-tab-btn active" id="tab-auth-login">Log In</button>
+          <button class="care-tab-btn" id="tab-auth-register">Register New Patient</button>
+        </div>
+
+        <form id="form-auth">
+          <div class="form-group" id="group-fullname" style="display: none;">
+            <label class="form-label" for="input-fullname">Full Name (Patient or Caregiver)</label>
+            <input type="text" id="input-fullname" class="form-input" placeholder="e.g. John Doe">
+          </div>
+
+          <div class="form-group" id="group-email">
+            <label class="form-label" for="input-email">
+              Email Address <span style="font-size: 0.75rem; color: var(--primary); font-weight: normal;">(Core bridge for care reminders)</span>
+            </label>
+            <input type="email" id="input-email" class="form-input" placeholder="e.g. patient@carebridge.ai" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-username">Patient Username / Identifier</label>
+            <input type="text" id="input-username" class="form-input" placeholder="e.g. robert_miller" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-password">Password</label>
+            <input type="password" id="input-password" class="form-input" placeholder="••••••••" required>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="btn-submit-auth" style="width: 100%; margin-top: 0.5rem;">
+            Continue to CareBridge
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>

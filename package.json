@@ -1,0 +1,27 @@
+{
+  "name": "carebridge-ai",
+  "version": "1.0.0",
+  "description": "CareBridge AI — Smart Post-Hospital Recovery Platform",
+  "scripts": {
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"blue,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "start": "node backend/src/server.js",
+    "serve": "npm run build:frontend && node backend/src/server.js",
+    "dev:backend": "node --watch-path=backend/src --watch-path=ai backend/src/server.js",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "build:frontend": "npm run build --prefix frontend",
+    "test": "npm test --prefix backend"
+  },
+  "keywords": [
+    "healthcare",
+    "ai",
+    "gemini",
+    "hospital-recovery",
+    "react",
+    "sqlite"
+  ],
+  "author": "CareBridge AI Team",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}

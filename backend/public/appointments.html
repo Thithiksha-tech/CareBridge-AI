@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doctor Appointments & Recovery Feedback — CareBridge AI</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <nav class="navbar" id="main-nav">
+    <div style="display: flex; align-items: center;">
+      <a href="index.html" class="nav-brand">
+        <div class="brand-icon">🌉</div>
+        <div>
+          <div class="brand-title">CareBridge AI</div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">Post-Hospital Care Portal</div>
+        </div>
+      </a>
+
+      <!-- Multi-Page Navigation Links -->
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">📊 Care Dashboard</a>
+        <a href="appointments.html" class="nav-link active">🩺 Doctor Appointments</a>
+        <a href="reminders.html" class="nav-link">⏰ Timed Care Reminders</a>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <button class="btn btn-primary btn-sm" id="btn-open-schedule-modal">
+        ➕ Schedule Appointment
+      </button>
+
+      <div class="patient-badge" id="patient-badge">
+        <div class="patient-avatar" id="patient-avatar-initials">PT</div>
+        <span id="patient-name-display">Loading...</span>
+      </div>
+
+      <button class="btn btn-outline btn-sm" id="btn-logout">
+        Logout
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main style="max-width: 1400px; margin: 0 auto; padding: 2rem 1.5rem; width: 100%; flex: 1;">
+
+    <!-- Page Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 2rem; font-weight: 800; color: var(--text-main);">Doctor Appointments & Health Confirmation</h1>
+        <p style="color: var(--text-muted); font-size: 1rem; margin-top: 0.25rem;">
+          Track previous physician feedback, vital signs, recovery improvements, and upcoming specialist consultations.
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <button class="btn btn-outline btn-sm" id="btn-open-feedback-modal">
+          📝 Log Doctor Feedback
+        </button>
+      </div>
+    </div>
+
+    <!-- Featured Spotlight: Last Doctor Consultation & Clinical Feedback -->
+    <section class="feedback-spotlight-card" id="last-feedback-spotlight">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <span class="badge" style="background: #bbf7d0; color: #166534; font-size: 0.75rem; margin-bottom: 0.5rem;">
+            LATEST COMPLETED CONSULTATION
+          </span>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: #14532d; margin-top: 0.25rem;" id="spotlight-doctor-name">
+            Dr. Sarah Vance, MD
+          </h2>
+          <p style="color: #166534; font-size: 0.9rem;" id="spotlight-meta">
+            Cardiothoracic Surgery • St. Jude Medical Center • October 24, 2026
+          </p>
+        </div>
+
+        <button class="btn btn-outline btn-sm" id="btn-edit-last-feedback" style="background: white; border-color: #86efac; color: #15803d;">
+          ✏️ Edit Visit Notes
+        </button>
+      </div>
+
+      <!-- Doctor's Exact Clinical Feedback -->
+      <div style="margin-top: 1.25rem;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.05em;">
+          🩺 Doctor's Evaluation & Feedback:
+        </div>
+        <div class="feedback-quote-box" id="spotlight-feedback-text">
+          "Patient is recovering well following cardiac stent placement. Incision healing cleanly with no erythema or swelling. Vitals well within target parameters. Adhere strictly to dual antiplatelet therapy without skipping doses."
+        </div>
+      </div>
+
+      <!-- Recovery Improvements & Vitals -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
+        <div style="background: white; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid #bbf7d0;">
+          <div style="font-size: 0.75rem; font-weight: 700; color: #166534; text-transform: uppercase;">🌱 Patient Healing Improvements:</div>
+          <p style="font-size: 0.9rem; color: #334155; margin-top: 0.35rem;" id="spotlight-improvements-text">
+            Walking 10 minutes comfortably without shortness of breath; blood pressure stabilized; chest tightness resolved.
+          </p>
+        </div>
+
+        <div style="background: white; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid #bbf7d0;">
+          <div style="font-size: 0.75rem; font-weight: 700; color: #166534; text-transform: uppercase;">📊 Recorded Vitals at Visit:</div>
+          <div class="vitals-pill-container" id="spotlight-vitals-container">
+            <span class="vitals-pill">❤️ BP: 118/76 mmHg</span>
+            <span class="vitals-pill">💓 HR: 68 bpm</span>
+            <span class="vitals-pill">🫁 SpO2: 98%</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Two-Column Layout: Upcoming Consultations vs Past Consultation History -->
+    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 2rem;" id="appointments-layout">
+      
+      <!-- Left Column: Upcoming Consultations -->
+      <section>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--text-main);">
+            📅 Upcoming Scheduled Consultations
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--text-muted);" id="upcoming-count-label">0 Scheduled</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;" id="upcoming-list-container">
+          <!-- Populated by JavaScript -->
+          <div style="padding: 2rem; text-align: center; color: var(--text-muted); background: white; border-radius: var(--radius-md);">
+            Loading upcoming visits...
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Past Doctor Consultations & History -->
+      <section>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--text-main);">
+            📜 Historical Doctor Feedback Log
+          </h2>
+          <span style="font-size: 0.85rem; color: var(--text-muted);" id="past-count-label">0 Past Visits</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;" id="past-list-container">
+          <!-- Populated by JavaScript -->
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Modal 1: Schedule New Upcoming Appointment -->
+  <div class="modal-backdrop" id="modal-schedule">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Schedule Doctor Consultation</h3>
+        <button class="btn-close-modal" id="btn-close-schedule-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-schedule-appointment">
+          <div class="form-group">
+            <label class="form-label" for="input-doctor-name">Doctor / Specialist Name</label>
+            <input type="text" id="input-doctor-name" class="form-input" placeholder="e.g. Dr. Gregory Henderson, MD" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-specialty">Medical Specialty / Department</label>
+            <input type="text" id="input-specialty" class="form-input" placeholder="e.g. Cardiology & Heart Care" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-clinic">Clinic / Hospital Location</label>
+            <input type="text" id="input-clinic" class="form-input" placeholder="e.g. Regional Heart & Vascular Center - Suite 300" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-appt-date">Appointment Date & Time</label>
+            <input type="text" id="input-appt-date" class="form-input" placeholder="e.g. 2026-11-05 10:30 AM" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-purpose">Purpose of Consultation</label>
+            <textarea id="input-purpose" class="form-input" rows="2" placeholder="e.g. Post-discharge ECG check and blood pressure review"></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%;">
+            Confirm & Schedule Appointment
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Log Doctor Feedback & Recovery Improvements -->
+  <div class="modal-backdrop" id="modal-feedback">
+    <div class="modal-box" style="max-width: 550px;">
+      <div class="modal-header">
+        <h3>Log Doctor Consultation Feedback</h3>
+        <button class="btn-close-modal" id="btn-close-feedback-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-log-feedback">
+          <input type="hidden" id="edit-appt-id">
+
+          <div class="form-group">
+            <label class="form-label" for="feedback-doctor">Doctor Name</label>
+            <input type="text" id="feedback-doctor" class="form-input" placeholder="e.g. Dr. Sarah Vance, MD" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="feedback-date">Consultation Date</label>
+            <input type="text" id="feedback-date" class="form-input" placeholder="e.g. 2026-10-24 11:00 AM" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="feedback-comments">
+              Doctor's Clinical Feedback & Advice
+            </label>
+            <textarea id="feedback-comments" class="form-input" rows="3" placeholder="What did the doctor advise regarding your recovery, medications, and activity?" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="feedback-improvements">
+              Patient Healing Improvements & Symptoms Noted
+            </label>
+            <textarea id="feedback-improvements" class="form-input" rows="2" placeholder="e.g. Walking without pain; swelling reduced; incision clean"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="feedback-vitals">Recorded Vitals (BP, Pulse, Oxygen)</label>
+            <input type="text" id="feedback-vitals" class="form-input" placeholder="e.g. BP: 120/80 mmHg, HR: 72 bpm">
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%;">
+            Save Clinical Feedback & Improvements
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Appointments Client Script -->
+  <script src="appointments.js"></script>
+</body>
+</html>

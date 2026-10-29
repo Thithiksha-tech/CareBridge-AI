@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timed Care Reminders & Daily Schedule — CareBridge AI</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏰</text></svg>">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <nav class="navbar" id="main-nav">
+    <div style="display: flex; align-items: center;">
+      <a href="index.html" class="nav-brand">
+        <div class="brand-icon">🌉</div>
+        <div>
+          <div class="brand-title">CareBridge AI</div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">Post-Hospital Care Portal</div>
+        </div>
+      </a>
+
+      <!-- Multi-Page Navigation Links -->
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">📊 Care Dashboard</a>
+        <a href="appointments.html" class="nav-link">🩺 Doctor Appointments</a>
+        <a href="reminders.html" class="nav-link active">⏰ Timed Care Reminders</a>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <button class="btn btn-primary btn-sm" id="btn-open-add-reminder">
+        ➕ Add Timed Reminder
+      </button>
+
+      <div class="patient-badge" id="patient-badge">
+        <div class="patient-avatar" id="patient-avatar-initials">PT</div>
+        <span id="patient-name-display">Loading...</span>
+      </div>
+
+      <button class="btn btn-outline btn-sm" id="btn-logout">
+        Logout
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main style="max-width: 1400px; margin: 0 auto; padding: 2rem 1.5rem; width: 100%; flex: 1;">
+
+    <!-- Page Header & Email Bridge Status -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 2rem; font-weight: 800; color: var(--text-main);">Timed Care Reminders & Schedule</h1>
+        <p style="color: var(--text-muted); font-size: 1rem; margin-top: 0.25rem;">
+          Automated email alerts with exact food instructions and exercise timings sent directly to your registered inbox.
+        </p>
+      </div>
+
+      <div style="background: white; border: 1px solid var(--border-subtle); padding: 0.75rem 1.25rem; border-radius: var(--radius-md); display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 1.25rem;">📬</span>
+        <div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Active Email Bridge</div>
+          <div style="font-size: 0.9rem; font-weight: 700; color: var(--primary);" id="active-email-display">patient@carebridge.ai</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline Groups Container: Morning, Midday, Evening, Night -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;" id="timeline-grid">
+
+      <!-- Morning Slot (08:00 AM) -->
+      <div class="dashboard-card timeline-section-group" id="group-morning">
+        <div class="timeline-slot-header">
+          <div class="slot-icon slot-icon-morning">🌅</div>
+          <div>
+            <div>Morning Routine</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">08:00 AM • Breakfast & Morning Tablets</div>
+          </div>
+        </div>
+        <div class="tasks-list" id="list-morning">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Midday / Afternoon Slot (01:00 PM) -->
+      <div class="dashboard-card timeline-section-group" id="group-midday">
+        <div class="timeline-slot-header">
+          <div class="slot-icon slot-icon-midday">☀️</div>
+          <div>
+            <div>Midday Routine</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">01:00 PM • Lunch & Hydration Check</div>
+          </div>
+        </div>
+        <div class="tasks-list" id="list-midday">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Evening Slot (05:30 PM) -->
+      <div class="dashboard-card timeline-section-group" id="group-evening">
+        <div class="timeline-slot-header">
+          <div class="slot-icon slot-icon-evening">🌇</div>
+          <div>
+            <div>Evening Routine</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">05:30 PM • Physical Activity & Exercises</div>
+          </div>
+        </div>
+        <div class="tasks-list" id="list-evening">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Night / Bedtime Slot (09:30 PM) -->
+      <div class="dashboard-card timeline-section-group" id="group-night">
+        <div class="timeline-slot-header">
+          <div class="slot-icon slot-icon-night">🌙</div>
+          <div>
+            <div>Bedtime Routine</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">09:30 PM • Evening Meds & Rest</div>
+          </div>
+        </div>
+        <div class="tasks-list" id="list-night">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Modal: Add Timed Care Reminder -->
+  <div class="modal-backdrop" id="modal-add-reminder">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Create Timed Care Reminder</h3>
+        <button class="btn-close-modal" id="btn-close-reminder-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-create-reminder">
+          <div class="form-group">
+            <label class="form-label" for="input-rem-title">Task / Tablet Name</label>
+            <input type="text" id="input-rem-title" class="form-input" placeholder="e.g. Eat Metoprolol 25mg Tablet" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-rem-cat">Category</label>
+            <select id="input-rem-cat" class="form-input" required>
+              <option value="medication">💊 Medication / Tablet</option>
+              <option value="exercise">🏃 Exercise & Mobility</option>
+              <option value="diet">🥗 Nutrition & Hydration</option>
+              <option value="appointment">🩺 Doctor Checkup</option>
+            </select>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label class="form-label" for="input-rem-time">Scheduled Time</label>
+              <input type="text" id="input-rem-time" class="form-input" placeholder="e.g. 08:00 AM" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="input-rem-slot">Routine Slot</label>
+              <select id="input-rem-slot" class="form-input">
+                <option value="morning">🌅 Morning</option>
+                <option value="midday">☀️ Midday / Afternoon</option>
+                <option value="evening">🌇 Evening</option>
+                <option value="night">🌙 Bedtime</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-rem-food">
+              Food & Timing Instruction
+            </label>
+            <input type="text" id="input-rem-food" class="form-input" placeholder="e.g. Take with morning breakfast and a glass of water">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-rem-desc">Caregiver Guidance / Clinical Purpose</label>
+            <textarea id="input-rem-desc" class="form-input" rows="2" placeholder="e.g. Prescribed for blood pressure management. Hold if pulse is under 55."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%;">
+            Save & Enable Email Reminders
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Script -->
+  <script src="reminders.js"></script>
+</body>
+</html>
